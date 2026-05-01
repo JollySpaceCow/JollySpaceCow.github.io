@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wallpaper Gallery — Jolly Space Cow</title>
+  <link rel="apple-touch-icon" sizes="180x180" href="public/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="public/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="public/favicon-16x16.png">
+  <link rel="icon" href="public/favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;900&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+  <style>
+    .page-hero {
+      padding: 6rem 2.5rem 2.5rem;
+      max-width: 960px; margin: 0 auto;
+    }
+    .page-hero h1 {
+      font-family: 'Outfit', sans-serif; font-weight: 900;
+      font-size: clamp(2.5rem, 6vw, 4rem);
+      letter-spacing: -0.04em; margin-bottom: 0.5rem;
+    }
+    .page-hero p { color: var(--text-3); font-size: 13px; }
+
+    /* wallpaper grid */
+    .wall-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 1rem;
+    }
+
+    .wall-card {
+      position: relative;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background: var(--bg-2);
+      cursor: pointer;
+      transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+    }
+    .wall-card:hover {
+      transform: translateY(-3px);
+      border-color: rgba(200,169,110,0.4);
+      box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+    }
+
+    .wall-thumb {
+      width: 100%;
+      aspect-ratio: 16/9;
+      object-fit: cover;
+      display: block;
+      background: var(--bg-3);
+      transition: transform 0.3s;
+    }
+    .wall-card:hover .wall-thumb {
+      transform: scale(1.03);
+    }
+
+    .wall-info {
+      padding: 0.75rem 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .wall-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-1);
+    }
+    .wall-meta {
+      font-size: 11px;
+      color: var(--text-3);
+      letter-spacing: 0.04em;
+    }
+
+    /* hover overlay */
+    .wall-overlay {
+      position: absolute; inset: 0;
+      background: rgba(0,0,0,0);
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.2s;
+      pointer-events: none;
+    }
+    .wall-card:hover .wall-overlay {
+      background: rgba(0,0,0,0.4);
+    }
+    .wall-overlay-text {
+      opacity: 0; transition: opacity 0.2s;
+      font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase;
+      color: #fff; font-weight: 600;
+      background: rgba(0,0,0,0.5);
+      padding: 0.5rem 1rem;
+      border-radius: 100px;
+      backdrop-filter: blur(4px);
+    }
+    .wall-card:hover .wall-overlay-text { opacity: 1; }
+
+    /* ── scrubber cards ── */
+    .scrub-card {
+      position: relative;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background: var(--bg-2);
+      cursor: ew-resize;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .scrub-card:hover {
+      border-color: rgba(167,139,250,0.5);
+      box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+    }
+
+    .scrub-frame {
+      width: 100%;
+      aspect-ratio: 4/3;
+      object-fit: cover;
+      display: block;
+      background: var(--bg-3);
+    }
+
+    .scrub-info {
+      padding: 0.75rem 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .scrub-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-1);
+    }
+    .scrub-hint {
+      font-size: 11px;
+      color: var(--text-3);
+      letter-spacing: 0.04em;
+      transition: opacity 0.2s;
+    }
+
+    /* progress bar */
+    .scrub-progress {
+      position: absolute;
+      bottom: 0; left: 0;
+      height: 3px;
+      background: linear-gradient(90deg, #a78bfa, #5ba3f5);
+      border-radius: 0 0 12px 12px;
+      transition: width 0.05s linear;
+      width: 0;
+      opacity: 0;
+      transition: width 0.05s linear, opacity 0.2s;
+    }
+    .scrub-card:hover .scrub-progress { opacity: 1; }
+
+    /* frame counter */
+    .scrub-counter {
+      position: absolute;
+      top: 10px; right: 12px;
+      font-family: 'Outfit', monospace;
+      font-size: 11px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.7);
+      background: rgba(0,0,0,0.5);
+      padding: 2px 8px;
+      border-radius: 4px;
+      backdrop-filter: blur(4px);
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .scrub-card:hover .scrub-counter { opacity: 1; }
+
+    .section-divider {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 0 2.5rem;
+    }
+    .section-divider hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 0;
+    }
+    .section-subtitle {
+      font-family: 'Outfit', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--text-3);
+      letter-spacing: -0.01em;
+      margin-bottom: 1rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-size: 11px;
+    }
+
+    /* lightbox */
+    .lb-overlay {
+      display: none; position: fixed; inset: 0; z-index: 1000;
+      background: rgba(0,0,0,0.92);
+      align-items: center; justify-content: center;
+      flex-direction: column; gap: 1.25rem; padding: 2rem;
+    }
+    .lb-overlay.open { display: flex; }
+    .lb-overlay img {
+      max-width: 100%; max-height: 70vh;
+      border-radius: 8px; object-fit: contain;
+    }
+    .lb-close {
+      position: absolute; top: 1.25rem; right: 1.25rem;
+      background: var(--bg-3); border: 1px solid var(--border);
+      color: var(--text-1); border-radius: 50%;
+      width: 36px; height: 36px; font-size: 1rem;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s;
+    }
+    .lb-close:hover { background: var(--bg-4); }
+    .lb-actions { display: flex; gap: 0.75rem; align-items: center; }
+    .lb-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1rem; font-weight: 700;
+      color: var(--text-1);
+    }
+    .lb-sub {
+      font-size: 12px; color: var(--text-3);
+      letter-spacing: 0.06em;
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+  <nav>
+    <a href="index.html" class="nav-logo">Jolly<span>Space</span>Cow</a>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="videos.html">Videos</a>
+      <a href="gallery.html" class="active">Gallery</a>
+      <a href="games.html">Games</a>
+      <a href="about.html">About</a>
+    </div>
+  </nav>
+
+  <div class="page-hero">
+    <p class="section-label">Free downloads</p>
+    <h1>Wallpaper Gallery</h1>
+    <p>Click any wallpaper to preview, then download the full-resolution version.</p>
+  </div>
+
+  <div id="dev-scrubber-section" style="display:none;">
+    <div class="section">
+      <p class="section-subtitle">Interactive</p>
+      <div class="wall-grid" id="scrub-grid"></div>
+    </div>
+
+    <div class="section-divider"><hr></div>
+  </div>
+
+  <div class="section">
+    <p class="section-subtitle">Wallpapers</p>
+    <div class="wall-grid" id="wall-grid"></div>
+  </div>
+
+  <div style="height:4rem;"></div>
+  <footer>© 2026 Jolly Space Cow</footer>
+</div>
+
+<!-- Lightbox -->
+<div class="lb-overlay" id="lb" onclick="closeLBOutside(event)">
+  <button class="lb-close" onclick="closeLB()">✕</button>
+  <img id="lb-img" src="" alt="">
+  <p class="lb-title" id="lb-title"></p>
+  <p class="lb-sub" id="lb-sub"></p>
+  <div class="lb-actions">
+    <a id="lb-dl" href="" download class="btn btn-primary">↓ Download Full Res</a>
+    <button onclick="closeLB()" class="btn btn-ghost">Close</button>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  WALLPAPER REGISTRY
+//  To add a new wallpaper:
+//    1. Drop  YourName.jxl        into assets/images/wallpapers/
+//    2. Drop  YourName720px.webp  into assets/images/thumbnails/
+//    3. Add   'YourName'          to the array below
+// ═══════════════════════════════════════════════════════
+const WALLPAPERS = [
+  'Kawoosh',
+  'Table',
+];
+
+// ═══════════════════════════════════════════════════════
+//  SCRUBBER REGISTRY
+//  To add a new scrubber:
+//    1. Put frames in assets/images/sequences/YourName/
+//       Named: frame_001.webp, frame_002.webp, ...
+//    2. Add { name: 'YourName', frames: 26 } below
+//  Title is auto-generated from PascalCase → spaced
+// ═══════════════════════════════════════════════════════
+const SCRUBBERS = [
+  { name: 'Beef', frames: 26 },
+];
+
+// PascalCase → spaced title:  "MyBigKawoosh" → "My Big Kawoosh"
+function toTitle(name) {
+  return name.replace(/([a-z])([A-Z])/g, '$1 $2')
+             .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2');
+}
+
+// ── Wallpapers ──
+function buildGallery() {
+  const grid = document.getElementById('wall-grid');
+  grid.innerHTML = WALLPAPERS.map(name => {
+    const thumb = `assets/images/thumbnails/${name}720px.webp`;
+    const full  = `assets/images/wallpapers/${name}.jxl`;
+    const title = toTitle(name);
+    return `
+    <div class="wall-card" onclick="openLB('${thumb}', '${full}', '${title}', 'JPEG XL')">
+      <img src="${thumb}" alt="${title} wallpaper" class="wall-thumb" loading="lazy">
+      <div class="wall-overlay"><span class="wall-overlay-text">↓ Preview & Download</span></div>
+      <div class="wall-info">
+        <span class="wall-title">${title}</span>
+        <span class="wall-meta">JPEG XL</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Scrubbers ──
+function buildScrubbers() {
+  const grid = document.getElementById('scrub-grid');
+  grid.innerHTML = SCRUBBERS.map((s, idx) => {
+    const title = toTitle(s.name);
+    const firstFrame = `assets/images/sequences/${s.name}/frame_001.webp`;
+    return `
+    <div class="scrub-card" id="scrub-${idx}" data-name="${s.name}" data-frames="${s.frames}">
+      <img src="${firstFrame}" alt="${title}" class="scrub-frame" id="scrub-img-${idx}" draggable="false">
+      <div class="scrub-counter" id="scrub-counter-${idx}">1 / ${s.frames}</div>
+      <div class="scrub-progress" id="scrub-progress-${idx}"></div>
+      <div class="scrub-info">
+        <span class="scrub-title">${title}</span>
+        <span class="scrub-hint">← hover to scrub →</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Preload frames & attach scrub listeners
+  SCRUBBERS.forEach((s, idx) => {
+    const frames = [];
+    for (let i = 1; i <= s.frames; i++) {
+      const img = new Image();
+      img.src = `assets/images/sequences/${s.name}/frame_${String(i).padStart(3, '0')}.webp`;
+      frames.push(img);
+    }
+
+    const card = document.getElementById(`scrub-${idx}`);
+    const imgEl = document.getElementById(`scrub-img-${idx}`);
+    const counter = document.getElementById(`scrub-counter-${idx}`);
+    const progress = document.getElementById(`scrub-progress-${idx}`);
+
+    card.addEventListener('mousemove', e => {
+      const rect = card.getBoundingClientRect();
+      const x = (e.clientX - rect.left) / rect.width;
+      const frameIdx = Math.min(Math.floor(x * s.frames), s.frames - 1);
+      if (frames[frameIdx].complete) {
+        imgEl.src = frames[frameIdx].src;
+      }
+      counter.textContent = `${frameIdx + 1} / ${s.frames}`;
+      progress.style.width = `${((frameIdx + 1) / s.frames) * 100}%`;
+    });
+
+    card.addEventListener('mouseleave', () => {
+      imgEl.src = frames[0].src;
+      counter.textContent = `1 / ${s.frames}`;
+      progress.style.width = '0%';
+    });
+  });
+}
+
+buildGallery();
+buildScrubbers();
+
+// Lightbox
+function openLB(preview, hq, title, format) {
+  document.getElementById('lb-img').src = preview;
+  document.getElementById('lb-title').textContent = title;
+  document.getElementById('lb-sub').textContent = format;
+  document.getElementById('lb-dl').href = hq;
+  document.getElementById('lb-dl').download = hq.split('/').pop();
+  document.getElementById('lb').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeLB() {
+  document.getElementById('lb').classList.remove('open');
+  document.body.style.overflow = '';
+}
+function closeLBOutside(e) {
+  if (e.target === document.getElementById('lb')) closeLB();
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLB(); });
+</script>
+<script src="assets/js/cursor.js"></script>
+<script>if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');</script>
+</body>
+</html>

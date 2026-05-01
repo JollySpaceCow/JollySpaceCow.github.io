@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="400">
+  <defs>
+    <filter id="caustics">
+      <!-- Generate procedural noise -->
+      <feTurbulence type="fractalNoise" baseFrequency="0.015 0.02" numOctaves="3" result="noise">
+        <animate attributeName="baseFrequency" values="0.015 0.02; 0.02 0.015; 0.015 0.02" dur="8s" repeatCount="indefinite"/>
+      </feTurbulence>
+      
+      <!-- Increase contrast to create sharp caustic lines -->
+      <feColorMatrix type="matrix" values="
+        0 0 0 0 1
+        0 0 0 0 1
+        0 0 0 0 1
+        0 0 0 25 -10" in="noise" result="highContrast"/>
+        
+      <!-- Background deep blue color -->
+      <feFlood flood-color="#0a2a5e" result="bg"/>
+      
+      <!-- Bright cyan for the caustic lines -->
+      <feFlood flood-color="#00d2ff" result="cyan"/>
+      <feComposite operator="in" in="cyan" in2="highContrast" result="brightLines"/>
+      
+      <!-- Blend lines over background -->
+      <feComposite operator="over" in="brightLines" in2="bg"/>
+    </filter>
+  </defs>
+  <rect width="100%" height="100%" filter="url(#caustics)"/>
+</svg>

@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Videos — Jolly Space Cow</title>
+  <link rel="apple-touch-icon" sizes="180x180" href="public/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="public/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="public/favicon-16x16.png">
+  <link rel="icon" href="public/favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&family=Inter:wght@400;500&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+  <style>
+    .page-hero {
+      padding: 4rem 2rem 2.5rem;
+      max-width: 960px;
+      margin: 0 auto;
+    }
+
+    .page-hero h1 {
+      font-family: 'Outfit', sans-serif;
+      font-size: clamp(2rem, 5vw, 3rem);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      margin-bottom: 0.6rem;
+    }
+
+    .page-hero p {
+      color: var(--text-2);
+      font-size: 0.95rem;
+    }
+
+    .video-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1rem;
+    }
+
+    .video-card {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      text-decoration: none;
+      color: inherit;
+      display: block;
+      transition: transform 0.15s, border-color 0.15s;
+    }
+
+    .video-card:hover {
+      transform: translateY(-2px);
+      border-color: var(--bg-4);
+    }
+
+    .thumb {
+      width: 100%;
+      aspect-ratio: 16/9;
+      background: var(--bg-3);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transition: transform 0.3s;
+    }
+
+    .video-card:hover .thumb img {
+      transform: scale(1.03);
+    }
+
+    .thumb-placeholder {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.5rem;
+    }
+
+    .play-icon {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+
+    .video-card:hover .play-icon {
+      opacity: 1;
+    }
+
+    .play-icon span {
+      background: rgba(0, 0, 0, 0.75);
+      color: #fff;
+      border-radius: 50%;
+      width: 48px;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      padding-left: 3px;
+    }
+
+    .video-info {
+      padding: 0.75rem 0.85rem 0.9rem;
+    }
+
+    .video-info h3 {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-1);
+      margin-bottom: 0.3rem;
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .video-meta {
+      font-size: 12px;
+      color: var(--text-3);
+    }
+
+    .skeleton {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    .skeleton-thumb {
+      width: 100%;
+      aspect-ratio: 16/9;
+      background: var(--bg-3);
+    }
+
+    .skeleton-info {
+      padding: 0.75rem;
+    }
+
+    .skeleton-line {
+      background: var(--bg-3);
+      border-radius: 4px;
+      height: 13px;
+      margin-bottom: 8px;
+    }
+
+    .skeleton-line.short {
+      width: 55%;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1
+      }
+
+      50% {
+        opacity: 0.5
+      }
+    }
+
+    .error-box {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 2rem;
+      text-align: center;
+      color: var(--text-2);
+      font-size: 14px;
+      grid-column: 1/-1;
+    }
+
+    .error-box a {
+      color: var(--accent);
+    }
+
+    .error-box code {
+      background: var(--bg-3);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 13px;
+      color: var(--text-1);
+    }
+
+    .yt-cta {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 2rem;
+      text-align: center;
+    }
+
+    .yt-cta h3 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+
+    .yt-cta p {
+      color: var(--text-2);
+      font-size: 14px;
+      margin-bottom: 1.25rem;
+    }
+
+    .yt-btns {
+      display: flex;
+      gap: 0.75rem;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page">
+    <nav>
+      <a href="index.html" class="nav-logo">Jolly<span>Space</span>Cow</a>
+      <div class="nav-links">
+        <a href="index.html">Home</a>
+        <a href="videos.html" class="active">Videos</a>
+        <a href="gallery.html">Gallery</a>
+        <a href="games.html">Games</a>
+        <a href="about.html">About</a>
+      </div>
+    </nav>
+
+    <div class="page-hero">
+      <p class="section-label">YouTube</p>
+      <h1>Videos</h1>
+      <p>Blender chaos, 3D experiments, board games, and more. Updated at least once every ten years.</p>
+    </div>
+
+    <div class="section">
+      <div class="video-grid" id="video-grid">
+        <div class="skeleton">
+          <div class="skeleton-thumb"></div>
+          <div class="skeleton-info">
+            <div class="skeleton-line"></div>
+            <div class="skeleton-line short"></div>
+          </div>
+        </div>
+        <div class="skeleton">
+          <div class="skeleton-thumb"></div>
+          <div class="skeleton-info">
+            <div class="skeleton-line"></div>
+            <div class="skeleton-line short"></div>
+          </div>
+        </div>
+        <div class="skeleton">
+          <div class="skeleton-thumb"></div>
+          <div class="skeleton-info">
+            <div class="skeleton-line"></div>
+            <div class="skeleton-line short"></div>
+          </div>
+        </div>
+        <div class="skeleton">
+          <div class="skeleton-thumb"></div>
+          <div class="skeleton-info">
+            <div class="skeleton-line"></div>
+            <div class="skeleton-line short"></div>
+          </div>
+        </div>
+        <div class="skeleton">
+          <div class="skeleton-thumb"></div>
+          <div class="skeleton-info">
+            <div class="skeleton-line"></div>
+            <div class="skeleton-line short"></div>
+          </div>
+        </div>
+        <div class="skeleton">
+          <div class="skeleton-thumb"></div>
+          <div class="skeleton-info">
+            <div class="skeleton-line"></div>
+            <div class="skeleton-line short"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="yt-cta">
+        <h3>See everything on YouTube</h3>
+        <p>There are videos. Subscribe so you don't miss the next one.</p>
+        <div class="yt-btns">
+          <a href="https://www.youtube.com/channel/UCpBcikf2fOhwMhp3Czj2CwA" class="btn btn-primary" target="_blank">▶
+            Visit Channel</a>
+          <a href="https://www.youtube.com/channel/UCpBcikf2fOhwMhp3Czj2CwA?sub_confirmation=1" class="btn btn-red"
+            target="_blank">Subscribe</a>
+        </div>
+      </div>
+    </div>
+
+    <footer>© 2026 Jolly Space Cow</footer>
+  </div>
+
+  <script>
+    const CHANNEL_ID = 'UCpBcikf2fOhwMhp3Czj2CwA';
+    const CACHE_KEY = 'jsc_videos_cache';
+    const CACHE_TTL = 6 * 60 * 60 * 1000; // 6 hours in ms
+
+    function timeAgo(dateStr) {
+      const diff = (Date.now() - new Date(dateStr)) / 1000;
+      if (diff < 3600) return Math.floor(diff / 60) + ' minutes ago';
+      if (diff < 86400) return Math.floor(diff / 3600) + ' hours ago';
+      if (diff < 2592000) return Math.floor(diff / 86400) + ' days ago';
+      if (diff < 31536000) return Math.floor(diff / 2592000) + ' months ago';
+      return Math.floor(diff / 31536000) + ' years ago';
+    }
+
+    function getVideoId(link) {
+      try { return new URL(link).searchParams.get('v'); } catch { return null; }
+    }
+
+    function renderCards(items) {
+      return items.slice(0, 6).map(item => {
+        const vid = getVideoId(item.link);
+        const thumbSrc = vid ? `https://img.youtube.com/vi/${vid}/mqdefault.jpg` : '';
+        const thumbHtml = thumbSrc
+          ? `<img src="${thumbSrc}" alt="${item.title.replace(/"/g, '&quot;')}" loading="lazy">`
+          : `<div class="thumb-placeholder">🎬</div>`;
+        return `
+        <a href="${item.link}" class="video-card" target="_blank" rel="noopener">
+          <div class="thumb">
+            ${thumbHtml}
+            <div class="play-icon"><span>▶</span></div>
+          </div>
+          <div class="video-info">
+            <h3>${item.title}</h3>
+            <span class="video-meta">${timeAgo(item.pubDate)}</span>
+          </div>
+        </a>`;
+      }).join('');
+    }
+
+    // Hardcoded fallback — real video IDs so thumbnails always work
+    const FALLBACK_ITEMS = [
+      { title: "I Built the Stargate KAWOOSH in Blender!", link: "https://www.youtube.com/watch?v=kN0PlQtC3aY", pubDate: new Date(Date.now() - 30 * 86400000).toISOString() },
+      { title: "I Finally Solved My Animation Problem", link: "https://www.youtube.com/watch?v=01x70FeGbEc", pubDate: new Date(Date.now() - 150 * 86400000).toISOString() },
+      { title: "This AI Accidentally Fixed My Terrible 3D Character", link: "https://www.youtube.com/watch?v=FQ-VMnV_3dg", pubDate: new Date(Date.now() - 210 * 86400000).toISOString() },
+      { title: "My Own Board Game", link: "https://www.youtube.com/watch?v=_AAxjL6hE3Y", pubDate: new Date(Date.now() - 240 * 86400000).toISOString() },
+      { title: "How I Became an Expert at Blender", link: "https://www.youtube.com/watch?v=jNl2kTclrio", pubDate: new Date(Date.now() - 365 * 86400000).toISOString() },
+      { title: "I Didn't Use Blender (Apology)", link: "https://www.youtube.com/watch?v=GyIhFGtcwgo", pubDate: new Date(Date.now() - 400 * 86400000).toISOString() }
+    ];
+
+    function getCachedVideos() {
+      try {
+        const raw = localStorage.getItem(CACHE_KEY);
+        if (!raw) return null;
+        const cached = JSON.parse(raw);
+        if (Date.now() - cached.ts > CACHE_TTL) {
+          localStorage.removeItem(CACHE_KEY);
+          return null;
+        }
+        return cached.items;
+      } catch { return null; }
+    }
+
+    function setCachedVideos(items) {
+      try {
+        localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), items }));
+      } catch { /* storage full — no big deal */ }
+    }
+
+    async function loadVideos() {
+      const grid = document.getElementById('video-grid');
+
+      // 1. Try cache first — avoids hitting the API on every page load
+      const cached = getCachedVideos();
+      if (cached) {
+        grid.innerHTML = renderCards(cached);
+        return;
+      }
+
+      // 2. Fetch fresh from RSS→JSON proxy
+      try {
+        const rssUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${CHANNEL_ID}`;
+        const apiUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}&count=6`;
+        const res = await fetch(apiUrl);
+        const data = await res.json();
+
+        if (data.status !== 'ok' || !data.items?.length) throw new Error('Feed empty');
+
+        const items = data.items.slice(0, 6);
+        setCachedVideos(items);
+        grid.innerHTML = renderCards(items);
+
+      } catch (e) {
+        // 3. Fallback — hardcoded data so the page never looks broken
+        grid.innerHTML = renderCards(FALLBACK_ITEMS);
+      }
+    }
+
+    loadVideos();
+  </script>
+  <script src="assets/js/cursor.js"></script>
+</body>
+
+</html>
