@@ -4,184 +4,22 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Games — Jolly Space Cow</title>
+  
   <link rel="apple-touch-icon" sizes="180x180" href="public/apple-touch-icon.png">
   <link rel="icon" type="image/png" sizes="32x32" href="public/favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="public/favicon-16x16.png">
   <link rel="icon" href="public/favicon.ico">
+  
   <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;900&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+  
   <link rel="stylesheet" href="assets/css/style.css">
-  <style>
-    * { user-select: none; -webkit-user-select: none; }
-
-    body { background: #07070f; }
-
-    .page-hero {
-      padding: 6rem 2.5rem 2rem;
-      max-width: 960px; margin: 0 auto;
-    }
-    .page-hero h1 {
-      font-family: 'Outfit', sans-serif; font-weight: 900;
-      font-size: clamp(2.5rem, 6vw, 4rem);
-      letter-spacing: -0.04em; margin-bottom: 0.4rem;
-    }
-    .page-hero p { color: var(--text-3); font-size: 13px; }
-
-    /* games layout */
-    .games-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 1.5rem;
-      max-width: 960px; margin: 0 auto;
-      padding: 1rem 2.5rem 6rem;
-    }
-    @media(max-width:680px) { .games-grid { grid-template-columns: 1fr; } }
-
-    .game-box {
-      background: var(--bg-2);
-      border: 1px solid var(--border);
-      border-radius: 16px; overflow: hidden;
-      display: flex; flex-direction: column;
-    }
-
-    .game-header {
-      padding: 1.25rem 1.5rem 0;
-    }
-    .game-title {
-      font-family: 'Outfit', sans-serif; font-weight: 700;
-      font-size: 1.1rem; color: var(--text-1);
-      margin-bottom: 0.2rem;
-    }
-    .game-desc { font-size: 12px; color: var(--text-3); }
-
-    /* ── GAME 1: Pat the Cat ── */
-    .pat-arena {
-      flex: 1; display: flex; flex-direction: column;
-      align-items: center; padding: 1.5rem;
-      gap: 1rem;
-    }
-
-    .pat-counter {
-      font-family: 'Outfit', sans-serif; font-weight: 900;
-      font-size: 2rem; color: var(--accent);
-      letter-spacing: -0.03em; text-align: center;
-      line-height: 1;
-    }
-    .pat-counter-label {
-      font-size: 11px; letter-spacing: 0.1em;
-      text-transform: uppercase; color: var(--text-3);
-      text-align: center; margin-top: 0.2rem;
-    }
-
-    .cat-container {
-      position: relative; cursor: pointer;
-      width: 200px; height: 200px;
-      border-radius: 50%; overflow: hidden;
-      border: 2px solid var(--border);
-      transition: border-color 0.2s;
-      flex-shrink: 0;
-    }
-    .cat-container:hover { border-color: var(--accent); }
-    .cat-container:active { transform: scale(0.97); }
-
-    .cat-img {
-      width: 100%; height: 100%; object-fit: cover;
-      display: block;
-      transition: filter 0.1s;
-    }
-    .cat-container:active .cat-img { filter: brightness(1.15); }
-
-    /* pat ripple */
-    .ripple {
-      position: absolute; border-radius: 50%;
-      background: rgba(200,169,110,0.4);
-      transform: scale(0); pointer-events: none;
-      animation: rippleOut 0.5s ease-out forwards;
-    }
-    @keyframes rippleOut {
-      to { transform: scale(4); opacity: 0; }
-    }
-
-    /* floating +1 */
-    .float-num {
-      position: fixed; pointer-events: none; z-index: 9999;
-      font-family: 'Outfit', sans-serif; font-weight: 900;
-      font-size: 1.4rem; color: var(--accent);
-      animation: floatUp 0.8s ease-out forwards;
-    }
-    @keyframes floatUp {
-      0%   { opacity:1; transform: translateY(0) scale(1); }
-      100% { opacity:0; transform: translateY(-60px) scale(0.7); }
-    }
-
-    .pat-msg {
-      font-size: 13px; color: var(--text-2);
-      text-align: center; min-height: 1.4rem;
-      font-family: 'Outfit', sans-serif;
-      transition: opacity 0.3s;
-    }
-
-    /* ── GAME 2: Wide = Wise ── */
-    .wide-arena {
-      flex: 1; display: flex; flex-direction: column;
-      align-items: center; padding: 1.5rem;
-      gap: 1rem;
-    }
-
-    .wisdom-display {
-      font-family: 'Outfit', sans-serif; font-weight: 900;
-      font-size: 1.8rem; color: #a78bfa;
-      letter-spacing: -0.02em; text-align: center;
-    }
-    .wisdom-label {
-      font-size: 11px; letter-spacing: 0.1em;
-      text-transform: uppercase; color: var(--text-3);
-      text-align: center; margin-top: 0.2rem;
-    }
-
-    .wide-cat-wrap {
-      width: 200px; height: 200px;
-      display: flex; align-items: center; justify-content: center;
-      cursor: pointer; flex-shrink: 0;
-      position: relative;
-    }
-    .wide-cat {
-      width: 200px; height: 200px;
-      object-fit: cover; border-radius: 16px;
-      display: block;
-      border: 2px solid var(--border);
-      transition: border-color 0.2s, filter 0.1s;
-      transform-origin: center;
-    }
-    .wide-cat-wrap:hover .wide-cat { border-color: #a78bfa; }
-    .wide-cat-wrap:active .wide-cat { filter: brightness(1.1); }
-
-    .wide-btn {
-      display: inline-flex; align-items: center; gap: 0.4rem;
-      padding: 0.5rem 1.1rem; border-radius: 8px;
-      background: rgba(167,139,250,0.12);
-      border: 1px solid rgba(167,139,250,0.25);
-      color: #a78bfa; font-size: 13px; cursor: pointer;
-      transition: all 0.15s; font-family: 'Inter', sans-serif;
-    }
-    .wide-btn:hover { background: rgba(167,139,250,0.2); }
-
-    .wide-wisdom-text {
-      font-size: 13px; color: var(--text-2);
-      text-align: center; min-height: 1.4rem;
-      font-family: 'Outfit', sans-serif; font-weight: 600;
-      transition: opacity 0.3s;
-    }
-
-    /* placeholder if no cat image */
-    .cat-placeholder {
-      width: 100%; height: 100%;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 4rem; background: var(--bg-3); border-radius: 50%;
-    }
-  </style>
+  <link rel="stylesheet" href="assets/css/components.css">
+  <link rel="stylesheet" href="assets/css/games.css">
 </head>
 <body>
+
 <div class="page">
   <nav>
     <a href="index.html" class="nav-logo">Jolly<span>Space</span>Cow</a>
@@ -189,165 +27,80 @@
       <a href="index.html">Home</a>
       <a href="videos.html">Videos</a>
       <a href="gallery.html">Gallery</a>
-      <a href="games.html" class="active">Games</a>
+      <a href="games.html">Games</a>
       <a href="about.html">About</a>
     </div>
   </nav>
 
-  <div class="page-hero">
-    <p class="section-label">Interactive</p>
+  <header class="page-hero">
+    <span class="section-label">Interactive</span>
     <h1>Games</h1>
-    <p>Very serious interactive experiences.</p>
+    <p>Very serious interactive experiences for the discerning space traveler.</p>
+  </header>
+
+  <div class="section">
+    <div class="games-grid">
+
+      <!-- GAME 1: Pat the Cat -->
+      <article class="game-box">
+        <header class="game-header">
+          <p class="game-title">Pat the Cat</p>
+          <p class="game-desc">Click to administer pats. Every pat matters in the grand cosmic scheme.</p>
+        </header>
+        <div class="game-arena">
+          <div class="game-stat">
+            <div class="game-val pat-counter" id="pat-count">0</div>
+            <div class="game-label">total pats</div>
+          </div>
+
+          <div class="cat-container" id="cat-btn">
+            <img src="images/cat.jpg" alt="cat" class="cat-img" onerror="this.style.display='none';document.getElementById('cat-fallback').style.display='flex'">
+            <div class="cat-placeholder" id="cat-fallback" style="display:none;">🐱</div>
+          </div>
+
+          <p class="game-msg" id="pat-msg">Awaiting pats.</p>
+        </div>
+      </article>
+
+      <!-- GAME 2: Wide = Wise -->
+      <article class="game-box">
+        <header class="game-header">
+          <p class="game-title">Wide = Wise</p>
+          <p class="game-desc">The wider the cat, the greater the wisdom. Science has proven it.</p>
+        </header>
+        <div class="game-arena">
+          <div class="game-stat">
+            <div class="game-val wisdom-display" id="wisdom-val">0%</div>
+            <div class="game-label">wisdom level</div>
+          </div>
+
+          <div class="wide-cat-wrap">
+            <img src="images/cat.jpg" alt="cat" id="wide-cat-img" class="wide-cat" onerror="this.style.display='none';document.getElementById('wide-fallback').style.display='flex'">
+            <div class="cat-placeholder" id="wide-fallback" style="display:none;border-radius:16px;width:180px;height:180px;">🐱</div>
+          </div>
+
+          <div style="display:flex; gap:0.75rem; align-items:center;">
+            <button class="btn btn-ghost" style="padding: 0.4rem 0.8rem; font-size: 12px;">↺ Reset</button>
+            <p class="game-msg" id="wide-msg">Expand its wisdom.</p>
+          </div>
+        </div>
+      </article>
+
+    </div>
   </div>
 
-  <div class="games-grid">
-
-    <!-- GAME 1: Pat the Cat -->
-    <div class="game-box">
-      <div class="game-header">
-        <p class="game-title">Pat the Cat</p>
-        <p class="game-desc">Click to administer pats. Every pat matters.</p>
-      </div>
-      <div class="pat-arena">
-        <div>
-          <div class="pat-counter" id="pat-count">0</div>
-          <div class="pat-counter-label">total pats</div>
-        </div>
-
-        <div class="cat-container" id="cat-btn" onclick="doPat(event)">
-          <img src="images/cat.jpg" alt="cat" class="cat-img"
-               onerror="this.style.display='none';document.getElementById('cat-fallback').style.display='flex'">
-          <div class="cat-placeholder" id="cat-fallback" style="display:none;">🐱</div>
-        </div>
-
-        <div class="pat-msg" id="pat-msg">Awaiting pats.</div>
-      </div>
+  <section class="section">
+    <span class="section-label" style="margin-bottom: 2rem;">Interactive Sequences</span>
+    <div class="wall-grid" id="scrub-grid">
+      <!-- Rendered by games.js -->
     </div>
+  </section>
 
-    <!-- GAME 2: Wide = Wise -->
-    <div class="game-box">
-      <div class="game-header">
-        <p class="game-title">Wide = Wise</p>
-        <p class="game-desc">The wider the cat, the greater the wisdom.</p>
-      </div>
-      <div class="wide-arena">
-        <div>
-          <div class="wisdom-display" id="wisdom-val">0%</div>
-          <div class="wisdom-label">wisdom level</div>
-        </div>
-
-        <div class="wide-cat-wrap" onclick="goWide()">
-          <img src="images/cat.jpg" alt="cat" id="wide-cat-img" class="wide-cat"
-               onerror="this.style.display='none';document.getElementById('wide-fallback').style.display='flex'">
-          <div class="cat-placeholder" id="wide-fallback"
-               style="display:none;border-radius:16px;width:200px;height:200px;">🐱</div>
-        </div>
-
-        <button class="wide-btn" onclick="resetWide()">↺ Reset</button>
-        <div class="wide-wisdom-text" id="wide-msg">Click the cat to expand its wisdom.</div>
-      </div>
-    </div>
-
-  </div>
-
-  <footer>© 2026 Jolly Space Cow</footer>
+  <footer class="site-footer"></footer>
 </div>
 
-<script>
-/* ── PAT THE CAT ── */
-let pats = parseInt(localStorage.getItem('jsc_pats') || '0');
-const msgs = [
-  'Awaiting pats.',
-  'Good.',
-  'More.',
-  'The cat approves.',
-  'Keep going.',
-  'Outstanding.',
-  'The cat is pleased.',
-  'Incredible form.',
-  'You pat with great skill.',
-  'The cat vibrates with joy.',
-  'Transcendent patting.',
-  'You have ascended.',
-];
-
-function updatePatDisplay() {
-  document.getElementById('pat-count').textContent = pats.toLocaleString();
-  const idx = Math.min(Math.floor(Math.log2(pats+1)), msgs.length-1);
-  document.getElementById('pat-msg').textContent = msgs[idx];
-  localStorage.setItem('jsc_pats', pats);
-}
-
-function doPat(e) {
-  pats++;
-  updatePatDisplay();
-
-  /* ripple */
-  const btn = document.getElementById('cat-btn');
-  const rect = btn.getBoundingClientRect();
-  const rip = document.createElement('div');
-  rip.className = 'ripple';
-  const size = 40;
-  rip.style.cssText = `width:${size}px;height:${size}px;left:${e.clientX-rect.left-size/2}px;top:${e.clientY-rect.top-size/2}px;`;
-  btn.appendChild(rip);
-  setTimeout(() => rip.remove(), 500);
-
-  /* floating +1 */
-  const fl = document.createElement('div');
-  fl.className = 'float-num';
-  fl.textContent = '+1';
-  fl.style.cssText = `left:${e.clientX-12}px;top:${e.clientY-20}px;`;
-  document.body.appendChild(fl);
-  setTimeout(() => fl.remove(), 800);
-
-  /* jiggle */
-  btn.style.transform = `rotate(${(Math.random()-0.5)*8}deg) scale(1.05)`;
-  setTimeout(() => { btn.style.transform=''; btn.style.transition='transform 0.3s ease'; }, 100);
-}
-
-updatePatDisplay();
-
-/* ── WIDE = WISE ── */
-let wideScale = 1.0;
-const wisdomWords = [
-  'Click the cat to expand its wisdom.',
-  'A little wide.',
-  'Getting there.',
-  'Notable width.',
-  'Considerable wisdom.',
-  'Very wide. Very wise.',
-  'The cat knows things.',
-  'Almost too wise.',
-  'Dangerously wide.',
-  'Maximum wisdom achieved.',
-  'Beyond wisdom. Beyond width.',
-  'The cat has become everything.',
-];
-
-function goWide() {
-  wideScale = Math.min(wideScale + 0.12, 4.5);
-  const img = document.getElementById('wide-cat-img');
-  const fb  = document.getElementById('wide-fallback');
-  const pct = Math.round((wideScale - 1) / 3.5 * 100);
-
-  img.style.transform = `scaleX(${wideScale})`;
-  fb.style.transform  = `scaleX(${wideScale})`;
-
-  document.getElementById('wisdom-val').textContent = pct + '%';
-  const idx = Math.min(Math.floor(pct / 10), wisdomWords.length - 1);
-  document.getElementById('wide-msg').textContent = wisdomWords[idx];
-}
-
-function resetWide() {
-  wideScale = 1.0;
-  const img = document.getElementById('wide-cat-img');
-  const fb  = document.getElementById('wide-fallback');
-  img.style.transform = 'scaleX(1)';
-  fb.style.transform  = 'scaleX(1)';
-  document.getElementById('wisdom-val').textContent = '0%';
-  document.getElementById('wide-msg').textContent = wisdomWords[0];
-}
-</script>
 <script src="assets/js/cursor.js"></script>
+<script src="assets/js/games.js"></script>
+<script src="assets/js/app.js"></script>
 </body>
 </html>

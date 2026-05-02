@@ -1,9 +1,8 @@
 // Jolly Space Cow — Service Worker
 // Caches the site for offline use and serves a fun offline page when disconnected
 
-const CACHE_NAME = 'jsc-v1';
+const CACHE_NAME = 'jsc-v3'; // Version 3: Modular Architecture
 
-// Core pages and assets to pre-cache on install
 const PRECACHE_URLS = [
   './',
   './index.html',
@@ -12,16 +11,32 @@ const PRECACHE_URLS = [
   './games.html',
   './about.html',
   './offline.html',
+  
+  // Styles
   './assets/css/style.css',
+  './assets/css/components.css',
+  './assets/css/hero.css',
+  './assets/css/videos.css',
+  './assets/css/games.css',
+  './assets/css/gallery.css',
+  
+  // Scripts
+  './assets/js/app.js',
   './assets/js/cursor.js',
   './assets/js/voronoi.js',
+  './assets/js/space.js',
+  './assets/js/videos.js',
+  './assets/js/games.js',
+  './assets/js/gallery.js',
+  './assets/js/offline.js',
+  
+  // Public assets
   './public/favicon.ico',
   './public/favicon-16x16.png',
   './public/favicon-32x32.png',
   './public/apple-touch-icon.png',
 ];
 
-// Install — pre-cache core assets
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
@@ -30,7 +45,6 @@ self.addEventListener('install', event => {
   );
 });
 
-// Activate — clean up old caches
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys =>
@@ -41,16 +55,13 @@ self.addEventListener('activate', event => {
   );
 });
 
-// Fetch — network-first for navigations, cache-first for assets
 self.addEventListener('fetch', event => {
   const { request } = event;
 
-  // HTML page navigations — try network first, fall back to cache, then offline page
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request)
         .then(response => {
-          // Cache successful navigation responses for later offline use
           const clone = response.clone();
           caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
           return response;
@@ -63,23 +74,17 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Static assets — cache-first (faster), fall back to network
   event.respondWith(
     caches.match(request).then(cached => {
       if (cached) return cached;
-
       return fetch(request).then(response => {
-        // Only cache same-origin successful responses
         if (response.ok && request.url.startsWith(self.location.origin)) {
           const clone = response.clone();
           caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
         }
         return response;
       }).catch(() => {
-        // For images that fail offline, return nothing gracefully
-        if (request.destination === 'image') {
-          return new Response('', { status: 404 });
-        }
+        if (request.destination === 'image') return new Response('', { status: 404 });
         return new Response('Offline', { status: 503 });
       });
     })

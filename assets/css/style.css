@@ -1,16 +1,26 @@
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
+/* ── Design Tokens ── */
 :root {
-  --bg:       #212121;
-  --bg-2:     #2a2a2a;
-  --bg-3:     #333333;
-  --bg-4:     #3d3d3d;
-  --border:   #404040;
-  --text-1:   #f1f1f1;
-  --text-2:   #aaaaaa;
-  --text-3:   #666666;
-  --accent:   #c8a96e;
-  --accent-h: #e8c98e;
+  --bg:           #212121;
+  --bg-2:         #2a2a2a;
+  --bg-3:         #333333;
+  --bg-4:         #3d3d3d;
+  --border:       #404040;
+  --text-1:       #f1f1f1;
+  --text-2:       #aaaaaa;
+  --text-3:       #666666;
+  --accent:       #c8a96e;
+  --accent-h:     #e8c98e;
+  --nav-height:   64px;
+  --nav-bg:       rgba(33, 33, 33, 0.85);
+  --transition:   all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ── Reset & Base ── */
+*, *::before, *::after { 
+  box-sizing: border-box; 
+  margin: 0; padding: 0; 
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 html { scroll-behavior: smooth; }
@@ -18,30 +28,83 @@ html { scroll-behavior: smooth; }
 body {
   background: var(--bg);
   color: var(--text-1);
-  font-family: 'Inter', sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 15px;
   line-height: 1.6;
   min-height: 100vh;
 }
 
-/* ── Nav ── */
+/* ── Global Layout ── */
+.page { position: relative; z-index: 1; }
+
+/* ── Navigation ── */
 nav {
-  position: sticky; top: 0; z-index: 100;
-  background: rgba(33,33,33,0.94);
-  backdrop-filter: blur(14px);
-  border-bottom: 1px solid var(--border);
+  position: fixed; 
+  top: 0; 
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: transparent;
+  border-bottom: 1px solid transparent;
   padding: 0 2rem;
-  height: 56px;
-  display: flex; align-items: center; justify-content: space-between;
+  height: var(--nav-height);
+  display: flex; 
+  align-items: center; 
+  justify-content: space-between;
+  transition: background 0.3s, border-color 0.3s, height 0.3s;
 }
 
-.nav-logo {
-  font-family: 'Outfit', sans-serif;
-  font-weight: 700; font-size: 1.05rem;
-  color: #fff; text-decoration: none;
-  letter-spacing: -0.02em;
+nav.is-scrolled {
+  background: var(--nav-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom-color: var(--border);
+  height: 56px;
 }
-.nav-logo span { color: inherit; }
+
+/* Logo: Explicitly white to prevent "reverting" */
+.nav-logo, 
+.nav-logo:link, 
+.nav-logo:visited {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 700; 
+  font-size: 1.05rem;
+  color: #ffffff !important; /* Force white to override any browser/ghost styles */
+  text-decoration: none;
+  letter-spacing: -0.02em;
+  display: flex;
+  align-items: center;
+  gap: 0.1rem;
+}
+
+.nav-logo span { 
+  color: inherit !important; 
+}
+
+.nav-logo:hover {
+  opacity: 0.85;
+}
+
+/* ── Interactive Cursor ── */
+.cursor-dot {
+  position: fixed; 
+  pointer-events: none; 
+  z-index: 9999;
+  width: 6px; 
+  height: 6px; 
+  border-radius: 50%;
+  background: var(--accent);
+  transform: translate(-50%, -50%);
+  transition: transform 0.15s ease-out, background-color 0.15s ease-out;
+}
+
+#cursor-canvas {
+  position: fixed; 
+  inset: 0; 
+  z-index: 9998; 
+  pointer-events: none;
+}
+
 
 .nav-links { display: flex; gap: 0.1rem; }
 .nav-links a {

@@ -112,15 +112,28 @@ const timeLoc = gl.getUniformLocation(program, "u_time");
 const resLoc = gl.getUniformLocation(program, "u_resolution");
 
 const seoTitle = document.getElementById('seo-title');
+let cachedFont = '';
+let cachedSpacing = '0px';
+
+function updateMetrics() {
+  if (!seoTitle) return;
+  const dpr = window.devicePixelRatio || 1;
+  const comp = window.getComputedStyle(seoTitle);
+  const fontSize = parseFloat(comp.fontSize) * dpr;
+  cachedFont = `${comp.fontWeight} ${fontSize}px ${comp.fontFamily}`;
+  const letterSpacingPx = parseFloat(comp.letterSpacing);
+  cachedSpacing = isNaN(letterSpacingPx) ? '0px' : (letterSpacingPx * dpr) + 'px';
+}
+
+window.addEventListener('resize', updateMetrics);
+updateMetrics();
 
 function render(time) {
   if (!seoTitle) return;
   
-  // Match the canvas size perfectly to the responsive DOM text size
   const rect = seoTitle.getBoundingClientRect();
   const dpr = window.devicePixelRatio || 1;
   
-  // Only update dimensions if they changed to save performance
   if (visibleCanvas.width !== Math.floor(rect.width * dpr) || visibleCanvas.height !== Math.floor(rect.height * dpr)) {
     visibleCanvas.width = rect.width * dpr;
     visibleCanvas.height = rect.height * dpr;
@@ -130,37 +143,26 @@ function render(time) {
     webglCanvas.width = visibleCanvas.width;
     webglCanvas.height = visibleCanvas.height;
     gl.viewport(0, 0, webglCanvas.width, webglCanvas.height);
+    updateMetrics(); // Ensure font scales with container
   }
   
-  // 1. Render WebGL
   gl.uniform1f(timeLoc, time * 0.001);
   gl.uniform2f(resLoc, webglCanvas.width, webglCanvas.height);
   gl.drawArrays(gl.TRIANGLES, 0, 6);
   
-  // 2. Draw Text as Mask
   ctx.clearRect(0, 0, visibleCanvas.width, visibleCanvas.height);
-  
-  const comp = window.getComputedStyle(seoTitle);
-  const fontSize = parseFloat(comp.fontSize) * dpr;
-  ctx.font = `${comp.fontWeight} ${fontSize}px ${comp.fontFamily}`;
-  
-  const letterSpacingPx = parseFloat(comp.letterSpacing);
-  if (!isNaN(letterSpacingPx)) {
-    ctx.letterSpacing = (letterSpacingPx * dpr) + 'px';
-  }
-  
-  // Perfectly center the text to match the DOM's layout
+  ctx.font = cachedFont;
+  ctx.letterSpacing = cachedSpacing;
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'center';
   ctx.fillStyle = '#fff';
   
-  // Small vertical nudge for "Outfit" font baseline matching
+  const fontSize = parseFloat(cachedFont.split(' ')[1]);
   ctx.fillText("Jolly Space Cow", visibleCanvas.width / 2, (visibleCanvas.height / 2) + (fontSize * 0.05));
   
-  // 3. Apply WebGL texture exactly inside the text
   ctx.globalCompositeOperation = 'source-in';
   ctx.drawImage(webglCanvas, 0, 0);
-  ctx.globalCompositeOperation = 'source-over'; // restore
+  ctx.globalCompositeOperation = 'source-over';
   
   requestAnimationFrame(render);
 }

@@ -4,117 +4,41 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Jolly Space Cow</title>
+  
+  <!-- Favicons -->
   <link rel="apple-touch-icon" sizes="180x180" href="public/apple-touch-icon.png">
   <link rel="icon" type="image/png" sizes="32x32" href="public/favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="public/favicon-16x16.png">
   <link rel="icon" href="public/favicon.ico">
+  
+  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;900&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+  
+  <!-- Styles -->
   <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="stylesheet" href="assets/css/hero.css">
+  
   <style>
+    /* Immediate critical overrides */
     * { user-select: none; -webkit-user-select: none; }
-
-    body { background: #07070f; overflow: hidden; height: 100vh; }
-
-    /* cursor */
-
-    #space-canvas {
-      position: fixed; inset: 0; z-index: 0; pointer-events: none;
-    }
-
-    nav {
-      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-      padding: 0 2rem; height: 56px;
-      display: flex; align-items: center; justify-content: space-between;
-    }
-    .nav-logo {
-      font-family: 'Outfit', sans-serif; font-weight: 700;
-      font-size: 1.05rem; letter-spacing: -0.02em;
-      color: #fff; text-decoration: none;
-    }
-    .nav-logo span { color: inherit; }
-
-    /* hero — full viewport, centred */
-    .hero {
-      position: fixed; inset: 0; z-index: 1;
-      display: flex; flex-direction: column;
-      justify-content: center; align-items: flex-start;
-      padding: 0 2.5rem;
-      max-width: 900px; margin: 0 auto; left: 0; right: 0;
-    }
-
-    .hero-kicker {
-      font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase;
-      color: var(--text-3); margin-bottom: 1.4rem;
-      opacity: 0; animation: fadeUp 0.6s 0.2s forwards;
-    }
-
-    .hero-title-wrapper {
-      opacity: 0; animation: fadeUp 0.7s 0.3s forwards;
-      margin-bottom: 0; display: inline-block; position: relative;
-    }
-    .hero-title {
-      font-family: 'Outfit', sans-serif; font-weight: 900;
-      font-size: clamp(2.8rem, 8vw, 6.5rem);
-      line-height: 0.93; letter-spacing: -0.04em;
-      margin: 0; padding: 0.1em; white-space: nowrap;
-    }
-    .hero-title .dim { color: #fff; }
-    .hero-title .gold { color: #fff; }
-
-    .hero-sub {
-      font-size: clamp(0.85rem, 1.4vw, 1rem);
-      color: rgba(241,241,241,0.38);
-      margin-top: 1.4rem; line-height: 1.6;
-      opacity: 0; animation: fadeUp 0.7s 0.5s forwards;
-    }
-
-    .hero-links {
-      display: flex; flex-wrap: wrap; gap: 0.55rem;
-      margin-top: 2.2rem;
-      opacity: 0; animation: fadeUp 0.7s 0.65s forwards;
-    }
-
-    .pill {
-      display: inline-flex; align-items: center; gap: 0.3rem;
-      padding: 0.45rem 0.9rem; border-radius: 100px;
-      font-size: 13px; font-weight: 500; text-decoration: none;
-      transition: all 0.2s; border: 1px solid transparent; cursor: pointer;
-    }
-    .pill-yt  { background: #cc0000; color: #fff; }
-    .pill-yt:hover { background: #e60000; transform: translateY(-1px); }
-    .pill-ghost {
-      background: transparent; color: rgba(241,241,241,0.45);
-      border-color: rgba(255,255,255,0.12);
-    }
-    .pill-ghost:hover { color: var(--text-1); border-color: rgba(255,255,255,0.3); transform: translateY(-1px); }
-    .pill-gold {
-      background: transparent; color: var(--accent);
-      border-color: rgba(200,169,110,0.25);
-    }
-    .pill-gold:hover { border-color: var(--accent); transform: translateY(-1px); }
-
-    @keyframes fadeUp {
-      from { opacity:0; transform: translateY(18px); }
-      to   { opacity:1; transform: translateY(0); }
-    }
-
-
   </style>
 </head>
-<body>
+<body class="is-home">
 
 <canvas id="space-canvas"></canvas>
 
-<div id="dev-menu" style="display:none; position:fixed; top:20px; right:20px; background:rgba(0,0,0,0.8); border:1px solid #c8a96e; padding:1.5rem; z-index:99999; border-radius:8px; font-family:'Inter', sans-serif;">
-  <h3 style="color:#c8a96e; margin-top:0; margin-bottom:1rem; font-family:'Outfit', sans-serif;">Dev Menu</h3>
-  <label style="color:#fff; font-size:14px; display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
-    <input type="checkbox" id="warp-toggle" style="cursor:pointer; width: 16px; height: 16px;">
-    Warp Mode (Forward/Back)
+<!-- Dev Tools -->
+<div id="dev-menu" style="display:none; position:fixed; top:20px; right:20px; background:rgba(0,0,0,0.85); border:1px solid #c8a96e; padding:1.5rem; z-index:99999; border-radius:12px; font-family:'Inter', sans-serif; backdrop-filter:blur(8px); box-shadow: 0 10px 40px rgba(0,0,0,0.5);">
+  <h3 style="color:#c8a96e; margin-top:0; margin-bottom:1rem; font-family:'Outfit', sans-serif; font-size: 1rem;">Dev Menu</h3>
+  <label style="color:#fff; font-size:14px; display:flex; align-items:center; gap:0.6rem; cursor:pointer;">
+    <input type="checkbox" id="warp-toggle" style="cursor:pointer; width: 18px; height: 18px; accent-color: #c8a96e;">
+    Warp Mode (E to toggle)
   </label>
 </div>
 
-<nav>
+<nav class="hero-nav">
   <a href="index.html" class="nav-logo">Jolly<span>Space</span>Cow</a>
   <div class="nav-links">
     <a href="index.html" class="active">Home</a>
@@ -125,9 +49,9 @@
   </div>
 </nav>
 
-<div class="hero">
+<main class="hero">
   <p class="hero-kicker">🐄 moo</p>
-  <div class="hero-title-wrapper" style="position: relative; display: inline-block;">
+  <div class="hero-title-wrapper">
     <!-- Hidden SEO title to dictate the correct wrapper dimensions -->
     <h1 class="hero-title" id="seo-title" style="visibility: hidden;">
       Jolly Space Cow
@@ -141,216 +65,13 @@
     <a href="https://www.youtube.com/channel/UCpBcikf2fOhwMhp3Czj2CwA?sub_confirmation=1" class="pill pill-ghost" target="_blank">🔔 Subscribe</a>
     <a href="https://jollyspacecow.itch.io" class="pill pill-ghost" target="_blank">🎮 itch.io</a>
   </div>
-</div>
+</main>
 
-
-
-<script>
-window.warpMode = false;
-let devKeys = '';
-window.addEventListener('keydown', (e) => {
-  devKeys += e.key;
-  if (devKeys.length > 2) devKeys = devKeys.slice(-2);
-  if (devKeys === '69') {
-    const dm = document.getElementById('dev-menu');
-    dm.style.display = dm.style.display === 'none' ? 'block' : 'none';
-  }
-});
-document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('warp-toggle').addEventListener('change', e => {
-    window.warpMode = e.target.checked;
-  });
-});
-
-
-/* ── SPACE CANVAS ── */
-const cv = document.getElementById('space-canvas');
-const cx = cv.getContext('2d');
-let W, H, stars=[], mouse={x:0.5,y:0.5}, smoothMouse={x:0.5,y:0.5};
-
-function resize() { W=cv.width=innerWidth; H=cv.height=innerHeight; }
-
-function mkStar(forcePos) {
-  return {
-    x: forcePos ? Math.random()*W : Math.random()*W,
-    y: Math.random()*H,
-    r: Math.random()*1.6+0.15,
-    speed: Math.random()*0.018+0.003,
-    opacity: Math.random()*0.75+0.1,
-    twinkle: Math.random()*Math.PI*2,
-    ts: Math.random()*0.025+0.005,
-    drift: (Math.random()-0.5)*0.025,
-    // colour tint — mostly white, occasional blue/gold
-    hue: Math.random()<0.08 ? (Math.random()<0.5?210:45) : 0,
-    sat: Math.random()<0.08 ? 80 : 0,
-  };
-}
-
-function initStars(n=380) { stars=Array.from({length:n},()=>mkStar(true)); }
-
-/* milky way band */
-function drawMilkyWay() {
-  const cx2 = W*0.5, cy2 = H*0.48;
-  const gr = cx.createLinearGradient(0, cy2-H*0.18, 0, cy2+H*0.18);
-  gr.addColorStop(0,'transparent');
-  gr.addColorStop(0.5,'rgba(160,180,255,0.028)');
-  gr.addColorStop(1,'transparent');
-  cx.save();
-  cx.translate(cx2, cy2);
-  cx.rotate(-0.18);
-  cx.fillStyle = gr;
-  cx.fillRect(-W*0.8, -H*0.18, W*1.6, H*0.36);
-  cx.restore();
-}
-
-/* nebulae */
-const nebulae = [
-  {x:0.15,y:0.25,r:0.22,h:220,o:0.04},
-  {x:0.82,y:0.55,r:0.2,h:260,o:0.032},
-  {x:0.48,y:0.78,r:0.18,h:195,o:0.03},
-  {x:0.68,y:0.18,r:0.15,h:30,o:0.025},
-];
-function drawNebulae(t) {
-  nebulae.forEach(b => {
-    const px=(b.x+Math.sin(t*0.00025+b.h)*0.015)*W;
-    const py=(b.y+Math.cos(t*0.0003+b.h)*0.015)*H;
-    const gr=cx.createRadialGradient(px,py,0,px,py,b.r*Math.max(W,H));
-    gr.addColorStop(0,`hsla(${b.h},65%,62%,${b.o})`);
-    gr.addColorStop(0.5,`hsla(${b.h},55%,50%,${b.o*0.3})`);
-    gr.addColorStop(1,'transparent');
-    cx.fillStyle=gr;
-    cx.beginPath(); cx.arc(px,py,b.r*Math.max(W,H),0,Math.PI*2); cx.fill();
-  });
-}
-
-/* mouse glow */
-function drawMouseGlow() {
-  const px=smoothMouse.x*W, py=smoothMouse.y*H;
-  const gr=cx.createRadialGradient(px,py,0,px,py,280);
-  gr.addColorStop(0,'rgba(200,169,110,0.045)');
-  gr.addColorStop(1,'transparent');
-  cx.fillStyle=gr; cx.fillRect(0,0,W,H);
-}
-
-/* shooting stars — infrequent */
-let shoot=null, shootStart=0;
-function maybeShoot(t) {
-  if (!shoot && Math.random()<0.0008) {
-    shoot={
-      x:Math.random()*W*0.75,
-      y:Math.random()*H*0.45,
-      len:Math.random()*140+70,
-      angle:Math.PI/5+(Math.random()-0.5)*0.25,
-    };
-    shootStart=t;
-  }
-  if (shoot) {
-    const p=(t-shootStart)/900;
-    if(p>1){shoot=null;return;}
-    const tail=Math.min(p*2,1);
-    const fade=p>0.55?1-(p-0.55)/0.45:1;
-    const ex=shoot.x+Math.cos(shoot.angle)*shoot.len*tail;
-    const ey=shoot.y+Math.sin(shoot.angle)*shoot.len*tail;
-    const sx=ex-Math.cos(shoot.angle)*shoot.len*Math.min(tail,0.38);
-    const sy=ey-Math.sin(shoot.angle)*shoot.len*Math.min(tail,0.38);
-    const gr=cx.createLinearGradient(sx,sy,ex,ey);
-    gr.addColorStop(0,'transparent');
-    gr.addColorStop(1,`rgba(255,255,248,${0.95*fade})`);
-    cx.strokeStyle=gr; cx.lineWidth=1.4;
-    cx.beginPath(); cx.moveTo(sx,sy); cx.lineTo(ex,ey); cx.stroke();
-  }
-}
-
-function draw(t) {
-  cx.clearRect(0,0,W,H);
-
-  /* very deep space tint */
-  cx.fillStyle='rgba(4,4,14,0.18)';
-  cx.fillRect(0,0,W,H);
-
-  smoothMouse.x += (mouse.x - smoothMouse.x) * 0.04;
-  smoothMouse.y += (mouse.y - smoothMouse.y) * 0.04;
-
-  drawMilkyWay();
-  drawNebulae(t);
-  drawMouseGlow();
-
-  /* stars */
-  stars.forEach(s => {
-    s.twinkle+=s.ts;
-    const op=s.opacity*(0.65+0.35*Math.sin(s.twinkle));
-    const px=s.x+(smoothMouse.x-0.5)*s.r*15;
-    const py=s.y+(smoothMouse.y-0.5)*s.r*15;
-
-    /* occasional glow on brighter stars */
-    if(s.r>1.2 && op>0.5) {
-      const gr=cx.createRadialGradient(px,py,0,px,py,s.r*5);
-      const col=s.sat>0?`hsla(${s.hue},${s.sat}%,85%,`:'rgba(255,255,248,';
-      gr.addColorStop(0,col+(op*0.4)+')');
-      gr.addColorStop(1,'transparent');
-      cx.fillStyle=gr;
-      cx.beginPath(); cx.arc(px,py,s.r*5,0,Math.PI*2); cx.fill();
-    }
-
-    const col=s.sat>0?`hsla(${s.hue},${s.sat}%,90%,${op})`:`rgba(245,245,255,${op})`;
-    
-    if (window.warpMode) {
-      let dx = s.x - W/2;
-      let dy = s.y - H/2;
-      let f = s.r * 0.0004 + 0.0001; // slower warp speed
-      let vx = dx * f;
-      let vy = dy * f;
-      s.x += vx;
-      s.y += vy;
-      
-      // smoothly fade in from the center so they aren't "born" visibly
-      let distFromCenter = Math.hypot(dx, dy);
-      let warpOp = op * Math.min(1, Math.max(0, (distFromCenter - 15) / 60));
-      const warpCol = s.sat>0?`hsla(${s.hue},${s.sat}%,90%,${warpOp})`:`rgba(245,245,255,${warpOp})`;
-      
-      // expanded boundaries so they don't "die" on screen
-      if (s.x < -50 || s.x > W + 50 || s.y < -50 || s.y > H + 50) {
-        let angle = Math.random() * Math.PI * 2;
-        let dist = Math.random() * Math.min(W, H) * 0.05 + 1;
-        s.x = W/2 + Math.cos(angle) * dist;
-        s.y = H/2 + Math.sin(angle) * dist;
-      }
-
-      if (Math.abs(vx) > 0.5 || Math.abs(vy) > 0.5) {
-        cx.strokeStyle = warpCol;
-        cx.lineWidth = Math.max(0.5, s.r * 0.8);
-        cx.beginPath();
-        cx.moveTo(px, py);
-        cx.lineTo(px - vx * 1.5, py - vy * 1.5);
-        cx.stroke();
-      } else {
-        cx.fillStyle = warpCol;
-        cx.beginPath(); cx.arc(px,py,s.r,0,Math.PI*2); cx.fill();
-      }
-    } else {
-      cx.fillStyle = col;
-      cx.beginPath(); cx.arc(px,py,s.r,0,Math.PI*2); cx.fill();
-
-      // Star Trek style parallax scrolling: closer (bigger) stars move faster!
-      // Exaggerated depth: scale speed non-linearly based on radius
-      s.x -= (Math.pow(s.r, 1.5) * 0.3 + 0.05); // slower horizontal speed
-      if(s.x < -20) {
-        s.x = W + 20;
-        s.y = Math.random() * H;
-      }
-    }
-  });
-
-  maybeShoot(t);
-  requestAnimationFrame(draw);
-}
-
-window.addEventListener('resize',()=>{resize();initStars();});
-document.addEventListener('mousemove',e=>{mouse.x=e.clientX/W;mouse.y=e.clientY/H;});
-resize(); initStars(); requestAnimationFrame(draw);
-</script>
+<!-- Core Scripts -->
+<script src="assets/js/space.js"></script>
 <script src="assets/js/voronoi.js"></script>
 <script src="assets/js/cursor.js"></script>
-<script>if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');</script>
+<script src="assets/js/app.js"></script>
+
 </body>
 </html>

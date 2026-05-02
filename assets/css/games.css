@@ -1,0 +1,238 @@
+/* ── GAMES PAGE STYLES ── */
+
+.games-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+@media(max-width: 680px) {
+  .games-grid { grid-template-columns: 1fr; }
+}
+
+.game-box {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: var(--transition);
+}
+
+.game-header {
+  padding: 1.5rem 1.5rem 0.5rem;
+}
+
+.game-title {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 700;
+  font-size: 1.2rem;
+  color: var(--text-1);
+  margin-bottom: 0.25rem;
+}
+
+.game-desc {
+  font-size: 12px;
+  color: var(--text-3);
+  line-height: 1.4;
+}
+
+.game-arena {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2rem;
+  gap: 1.5rem;
+}
+
+/* Common Game Elements */
+.game-stat {
+  text-align: center;
+}
+
+.game-val {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 900;
+  font-size: 2.2rem;
+  line-height: 1;
+  margin-bottom: 0.2rem;
+}
+
+.game-label {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+/* ── Pat the Cat ── */
+.pat-counter { color: var(--accent); }
+
+.cat-container {
+  position: relative;
+  cursor: pointer;
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 3px solid var(--border);
+  transition: border-color 0.2s, transform 0.1s;
+  background: var(--bg-3);
+}
+
+.cat-container:hover { border-color: var(--accent); }
+.cat-container:active { transform: scale(0.96); }
+
+.cat-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.ripple {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(200, 169, 110, 0.4);
+  transform: scale(0);
+  pointer-events: none;
+  animation: rippleOut 0.5s ease-out forwards;
+}
+
+@keyframes rippleOut {
+  to { transform: scale(4); opacity: 0; }
+}
+
+.float-num {
+  position: fixed;
+  pointer-events: none;
+  z-index: 9999;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 900;
+  font-size: 1.5rem;
+  color: var(--accent);
+  animation: floatUp 0.8s ease-out forwards;
+}
+
+@keyframes floatUp {
+  0%   { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-80px) scale(0.5); }
+}
+
+.game-msg {
+  font-size: 13px;
+  color: var(--text-2);
+  text-align: center;
+  min-height: 1.4rem;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 500;
+}
+
+/* ── Wide = Wise ── */
+.wisdom-display { color: #a78bfa; }
+
+.wide-cat-wrap {
+  width: 180px;
+  height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+}
+
+.wide-cat {
+  width: 180px;
+  height: 180px;
+  object-fit: cover;
+  border-radius: 16px;
+  display: block;
+  border: 3px solid var(--border);
+  transition: border-color 0.2s, filter 0.1s;
+  transform-origin: center;
+}
+
+.wide-cat-wrap:hover .wide-cat { border-color: #a78bfa; }
+
+.cat-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3.5rem;
+  background: var(--bg-3);
+  border-radius: 50%;
+}
+
+/* ── Scrubbers ── */
+.scrub-card {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--bg-2);
+  cursor: ew-resize;
+  transition: var(--transition);
+}
+
+.scrub-card:hover {
+  border-color: #a78bfa;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+}
+
+.scrub-frame {
+  width: 100%;
+  aspect-ratio: 4/3;
+  object-fit: cover;
+  display: block;
+}
+
+.scrub-info {
+  padding: 1rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.scrub-title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.scrub-hint {
+  font-size: 11px;
+  color: var(--text-3);
+  font-weight: 500;
+}
+
+.scrub-progress {
+  position: absolute;
+  bottom: 0; left: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #a78bfa, #5ba3f5);
+  transition: width 0.05s linear;
+  width: 0;
+}
+
+.scrub-counter {
+  position: absolute;
+  top: 12px; right: 12px;
+  font-family: 'Outfit', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(0,0,0,0.6);
+  padding: 4px 10px;
+  border-radius: 6px;
+  backdrop-filter: blur(8px);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.scrub-card:hover .scrub-counter { opacity: 1; }
+

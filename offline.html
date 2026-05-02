@@ -7,468 +7,58 @@
   <link rel="icon" href="public/favicon.ico">
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;900&display=swap');
-
     * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; -webkit-user-select: none; }
-
     body {
-      background: #07070f;
-      color: #f1f1f1;
-      font-family: 'Outfit', -apple-system, sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
-      overflow: hidden;
+      background: #07070f; color: #f1f1f1; font-family: 'Outfit', -apple-system, sans-serif;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      height: 100vh; overflow: hidden;
     }
-
-    .offline-msg {
-      text-align: center;
-      margin-bottom: 2rem;
-      animation: fadeIn 0.6s ease;
-    }
-
+    .offline-msg { text-align: center; margin-bottom: 2rem; }
     .offline-msg h1 {
-      font-size: clamp(1.8rem, 5vw, 3rem);
-      font-weight: 900;
-      letter-spacing: -0.03em;
-      margin-bottom: 0.5rem;
-      background: linear-gradient(135deg, #5ba3f5, #a78bfa);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
+      font-size: clamp(1.8rem, 5vw, 3rem); font-weight: 900; letter-spacing: -0.03em;
+      margin-bottom: 0.5rem; background: linear-gradient(135deg, #5ba3f5, #a78bfa);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
     }
-
-    .offline-msg p {
-      color: rgba(241,241,241,0.4);
-      font-size: clamp(0.85rem, 1.5vw, 1rem);
-      line-height: 1.5;
-    }
-
-    .offline-msg .emoji {
-      font-size: 3rem;
-      display: block;
-      margin-bottom: 1rem;
-      -webkit-text-fill-color: initial;
-    }
-
+    .offline-msg p { color: rgba(241,241,241,0.4); font-size: clamp(0.85rem, 1.5vw, 1rem); line-height: 1.5; }
     #game-container {
-      position: relative;
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 12px;
-      overflow: hidden;
-      background: #0a0a18;
-      box-shadow: 0 0 60px rgba(91, 163, 245, 0.06);
+      position: relative; border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px; overflow: hidden; background: #0a0a18;
+      box-shadow: 0 0 60px rgba(91, 163, 245, 0.1);
     }
-
-    #game-canvas {
-      display: block;
-    }
-
-    .game-hint {
-      text-align: center;
-      margin-top: 1rem;
-      color: rgba(241,241,241,0.25);
-      font-size: 13px;
-      animation: pulse 2s ease-in-out infinite;
-    }
-
+    #game-canvas { display: block; }
     .score-display {
-      position: absolute;
-      top: 12px;
-      right: 16px;
-      font-size: 14px;
-      font-weight: 600;
-      color: rgba(255,255,255,0.5);
-      font-family: 'Outfit', monospace;
-      letter-spacing: 0.05em;
+      position: absolute; top: 12px; right: 16px; font-size: 14px;
+      font-weight: 600; color: rgba(255,255,255,0.5); font-family: 'Outfit', monospace;
     }
-
-    .hi-score {
-      font-size: 11px;
-      color: rgba(255,255,255,0.25);
-      margin-top: 2px;
-      text-align: right;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(16px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    @keyframes pulse {
-      0%, 100% { opacity: 0.25; }
-      50% { opacity: 0.5; }
-    }
-
+    .game-hint { text-align: center; margin-top: 1.5rem; color: rgba(241,241,241,0.25); font-size: 13px; }
     .retry-btn {
-      display: inline-block;
-      margin-top: 1.5rem;
-      padding: 0.5rem 1.2rem;
-      background: rgba(255,255,255,0.06);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 100px;
-      color: rgba(241,241,241,0.5);
-      font-size: 13px;
-      font-family: 'Outfit', sans-serif;
-      cursor: pointer;
-      transition: all 0.2s;
-      text-decoration: none;
+      display: inline-block; margin-top: 1.5rem; padding: 0.6rem 1.4rem;
+      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 100px; color: rgba(241,241,241,0.5); text-decoration: none;
+      font-size: 13px; transition: all 0.2s;
     }
-    .retry-btn:hover {
-      color: #f1f1f1;
-      border-color: rgba(255,255,255,0.25);
-      background: rgba(255,255,255,0.08);
-    }
+    .retry-btn:hover { color: #fff; background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); }
+    @keyframes pulse { 0%, 100% { opacity: 0.2; } 50% { opacity: 0.5; } }
   </style>
 </head>
 <body>
-
-<div class="offline-msg">
-  <span class="emoji">🐄💫</span>
-  <h1>Lost in Space</h1>
-  <p>You're offline right now. No internet signal detected.<br>While you wait, enjoy a game!</p>
-</div>
-
-<div id="game-container">
-  <canvas id="game-canvas" width="600" height="200"></canvas>
-  <div class="score-display">
-    <div id="score">0</div>
-    <div class="hi-score">HI <span id="hi-score">0</span></div>
+  <div class="offline-msg">
+    <div style="font-size:3rem; margin-bottom:1rem;">🐄💫</div>
+    <h1>Lost in Space</h1>
+    <p>You're offline. While you wait for a signal,<br>help the Space Cow dodge asteroids!</p>
   </div>
-</div>
 
-<p class="game-hint" id="game-hint">Press SPACE or tap to jump</p>
+  <div id="game-container">
+    <canvas id="game-canvas" width="600" height="200"></canvas>
+    <div class="score-display">
+      <div id="score">0</div>
+      <div style="font-size:10px; color:rgba(255,255,255,0.2); text-align:right;">HI <span id="hi-score">0</span></div>
+    </div>
+  </div>
 
-<a class="retry-btn" href="javascript:location.reload()">↻ Try reconnecting</a>
+  <p class="game-hint" id="game-hint">Press SPACE or tap to jump</p>
+  <a class="retry-btn" href="javascript:location.reload()">↻ Try Reconnecting</a>
 
-<script>
-const canvas = document.getElementById('game-canvas');
-const c = canvas.getContext('2d');
-const scoreEl = document.getElementById('score');
-const hiScoreEl = document.getElementById('hi-score');
-const hintEl = document.getElementById('game-hint');
-
-// Responsive canvas
-function resizeCanvas() {
-  const maxW = Math.min(window.innerWidth - 40, 600);
-  canvas.style.width = maxW + 'px';
-  canvas.style.height = (maxW * 200 / 600) + 'px';
-}
-resizeCanvas();
-window.addEventListener('resize', resizeCanvas);
-
-// Game state
-const GRAVITY = 0.6;
-const JUMP_FORCE = -10.5;
-const GROUND_Y = 165;
-const COW_SIZE = 28;
-
-let hiScore = parseInt(localStorage.getItem('jsc_offline_hiscore') || '0');
-hiScoreEl.textContent = hiScore;
-
-let cow, obstacles, particles, stars, score, speed, gameOver, started, frameCount;
-
-function init() {
-  cow = { x: 70, y: GROUND_Y, vy: 0, jumping: false, rotation: 0 };
-  obstacles = [];
-  particles = [];
-  stars = Array.from({ length: 40 }, () => ({
-    x: Math.random() * 600,
-    y: Math.random() * 140,
-    r: Math.random() * 1.5 + 0.3,
-    speed: Math.random() * 0.3 + 0.1,
-    twinkle: Math.random() * Math.PI * 2,
-  }));
-  score = 0;
-  speed = 3.5;
-  gameOver = false;
-  started = false;
-  frameCount = 0;
-}
-init();
-
-function jump() {
-  if (gameOver) {
-    init();
-    started = true;
-    hintEl.textContent = 'Press SPACE or tap to jump';
-    return;
-  }
-  if (!started) {
-    started = true;
-    hintEl.style.animation = 'none';
-    hintEl.style.opacity = '0';
-  }
-  if (!cow.jumping) {
-    cow.vy = JUMP_FORCE;
-    cow.jumping = true;
-  }
-}
-
-// Controls
-document.addEventListener('keydown', e => {
-  if (e.code === 'Space' || e.code === 'ArrowUp') { e.preventDefault(); jump(); }
-});
-canvas.addEventListener('click', jump);
-canvas.addEventListener('touchstart', e => { e.preventDefault(); jump(); }, { passive: false });
-
-// Draw the cow (pixel art style)
-function drawCow(x, y, rot) {
-  c.save();
-  c.translate(x, y);
-  c.rotate(rot);
-
-  // Body
-  c.fillStyle = '#f0f0f0';
-  c.fillRect(-14, -10, 28, 16);
-
-  // Spots
-  c.fillStyle = '#333';
-  c.fillRect(-8, -8, 7, 6);
-  c.fillRect(4, -4, 6, 5);
-  c.fillRect(-3, 2, 5, 4);
-
-  // Head
-  c.fillStyle = '#f0f0f0';
-  c.fillRect(14, -12, 12, 12);
-
-  // Eye
-  c.fillStyle = '#111';
-  c.fillRect(21, -10, 3, 3);
-
-  // Nose/snout
-  c.fillStyle = '#ffb6c1';
-  c.fillRect(16, -4, 8, 5);
-
-  // Horns
-  c.fillStyle = '#c8a96e';
-  c.fillRect(18, -16, 3, 5);
-  c.fillRect(23, -16, 3, 5);
-
-  // Legs
-  c.fillStyle = '#ddd';
-  c.fillRect(-10, 6, 4, 8);
-  c.fillRect(-2, 6, 4, 8);
-  c.fillRect(6, 6, 4, 8);
-  c.fillRect(14, 6, 4, 8);
-
-  // Hooves
-  c.fillStyle = '#555';
-  c.fillRect(-10, 12, 4, 3);
-  c.fillRect(-2, 12, 4, 3);
-  c.fillRect(6, 12, 4, 3);
-  c.fillRect(14, 12, 4, 3);
-
-  // Tail
-  c.fillStyle = '#ddd';
-  c.fillRect(-18, -8, 5, 3);
-  c.fillStyle = '#c8a96e';
-  c.fillRect(-20, -10, 4, 4);
-
-  // Space helmet (circle around head)
-  c.strokeStyle = 'rgba(91, 163, 245, 0.5)';
-  c.lineWidth = 1.5;
-  c.beginPath();
-  c.arc(20, -6, 14, 0, Math.PI * 2);
-  c.stroke();
-
-  // Helmet glare
-  c.fillStyle = 'rgba(255,255,255,0.15)';
-  c.beginPath();
-  c.arc(15, -10, 4, 0, Math.PI * 2);
-  c.fill();
-
-  c.restore();
-}
-
-// Asteroid obstacle
-function drawAsteroid(x, y, size) {
-  c.fillStyle = '#6b6b7b';
-  c.beginPath();
-  const points = 8;
-  for (let i = 0; i < points; i++) {
-    const angle = (i / points) * Math.PI * 2;
-    const jitter = size * (0.7 + Math.sin(i * 2.7) * 0.3);
-    const px = x + Math.cos(angle) * jitter;
-    const py = y + Math.sin(angle) * jitter;
-    i === 0 ? c.moveTo(px, py) : c.lineTo(px, py);
-  }
-  c.closePath();
-  c.fill();
-
-  // Craters
-  c.fillStyle = '#555565';
-  c.beginPath(); c.arc(x - size * 0.2, y - size * 0.15, size * 0.2, 0, Math.PI * 2); c.fill();
-  c.beginPath(); c.arc(x + size * 0.25, y + size * 0.2, size * 0.15, 0, Math.PI * 2); c.fill();
-}
-
-// Particles
-function spawnParticles(x, y) {
-  for (let i = 0; i < 12; i++) {
-    particles.push({
-      x, y,
-      vx: (Math.random() - 0.5) * 6,
-      vy: (Math.random() - 0.5) * 6,
-      life: 1,
-      size: Math.random() * 3 + 1,
-      color: Math.random() > 0.5 ? '#5ba3f5' : '#a78bfa',
-    });
-  }
-}
-
-function update() {
-  if (!started || gameOver) return;
-
-  frameCount++;
-  speed = 3.5 + score * 0.003;
-
-  // Cow physics
-  cow.vy += GRAVITY;
-  cow.y += cow.vy;
-  if (cow.y >= GROUND_Y) {
-    cow.y = GROUND_Y;
-    cow.vy = 0;
-    cow.jumping = false;
-  }
-  cow.rotation = cow.jumping ? Math.min(cow.vy * 0.03, 0.3) : 0;
-
-  // Spawn obstacles
-  const minGap = Math.max(70, 120 - score * 0.15);
-  if (frameCount % Math.max(40, Math.floor(90 - score * 0.1)) === 0) {
-    const size = Math.random() * 10 + 14;
-    obstacles.push({
-      x: 620,
-      y: GROUND_Y + 6 - size,
-      size,
-      passed: false,
-    });
-  }
-
-  // Move obstacles
-  for (let i = obstacles.length - 1; i >= 0; i--) {
-    const o = obstacles[i];
-    o.x -= speed;
-
-    // Score
-    if (!o.passed && o.x + o.size < cow.x) {
-      o.passed = true;
-      score++;
-      scoreEl.textContent = score;
-    }
-
-    // Collision (generous hitbox)
-    const dx = cow.x - o.x;
-    const dy = cow.y - o.y;
-    if (Math.abs(dx) < o.size + 10 && Math.abs(dy) < o.size + 8) {
-      gameOver = true;
-      spawnParticles(cow.x, cow.y);
-      if (score > hiScore) {
-        hiScore = score;
-        localStorage.setItem('jsc_offline_hiscore', hiScore);
-        hiScoreEl.textContent = hiScore;
-      }
-      hintEl.textContent = 'Press SPACE or tap to retry';
-      hintEl.style.animation = 'pulse 2s ease-in-out infinite';
-      hintEl.style.opacity = '';
-    }
-
-    if (o.x < -30) obstacles.splice(i, 1);
-  }
-
-  // Particles
-  for (let i = particles.length - 1; i >= 0; i--) {
-    const p = particles[i];
-    p.x += p.vx;
-    p.y += p.vy;
-    p.life -= 0.025;
-    if (p.life <= 0) particles.splice(i, 1);
-  }
-
-  // Stars
-  stars.forEach(s => {
-    s.x -= s.speed * speed * 0.3;
-    s.twinkle += 0.03;
-    if (s.x < -5) { s.x = 610; s.y = Math.random() * 140; }
-  });
-}
-
-function draw() {
-  // Background
-  c.fillStyle = '#0a0a18';
-  c.fillRect(0, 0, 600, 200);
-
-  // Stars
-  stars.forEach(s => {
-    const op = 0.3 + 0.3 * Math.sin(s.twinkle);
-    c.fillStyle = `rgba(200, 210, 255, ${op})`;
-    c.beginPath();
-    c.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-    c.fill();
-  });
-
-  // Ground line
-  c.strokeStyle = 'rgba(255,255,255,0.06)';
-  c.lineWidth = 1;
-  c.beginPath();
-  c.moveTo(0, GROUND_Y + 16);
-  c.lineTo(600, GROUND_Y + 16);
-  c.stroke();
-
-  // Ground dots (scrolling)
-  c.fillStyle = 'rgba(255,255,255,0.04)';
-  const groundOffset = started ? (frameCount * speed * 0.5) % 20 : 0;
-  for (let i = -1; i < 32; i++) {
-    c.fillRect(i * 20 - groundOffset, GROUND_Y + 20, 1, 1);
-  }
-
-  // Obstacles
-  obstacles.forEach(o => drawAsteroid(o.x, o.y, o.size));
-
-  // Cow
-  drawCow(cow.x, cow.y, cow.rotation);
-
-  // Particles
-  particles.forEach(p => {
-    c.globalAlpha = p.life;
-    c.fillStyle = p.color;
-    c.fillRect(p.x, p.y, p.size, p.size);
-  });
-  c.globalAlpha = 1;
-
-  // Game over overlay
-  if (gameOver) {
-    c.fillStyle = 'rgba(7, 7, 15, 0.5)';
-    c.fillRect(0, 0, 600, 200);
-
-    c.fillStyle = '#f1f1f1';
-    c.font = '900 24px Outfit, sans-serif';
-    c.textAlign = 'center';
-    c.textBaseline = 'middle';
-    c.fillText('GAME OVER', 300, 85);
-
-    c.font = '14px Outfit, sans-serif';
-    c.fillStyle = 'rgba(241,241,241,0.5)';
-    c.fillText(`Score: ${score}`, 300, 115);
-  }
-
-  // "Press to start" idle state
-  if (!started && !gameOver) {
-    c.fillStyle = 'rgba(241,241,241,0.25)';
-    c.font = '13px Outfit, sans-serif';
-    c.textAlign = 'center';
-    c.textBaseline = 'middle';
-    c.fillText('press SPACE to start', 300, 90);
-  }
-}
-
-function loop() {
-  update();
-  draw();
-  requestAnimationFrame(loop);
-}
-loop();
-</script>
-
+  <script src="assets/js/offline.js"></script>
 </body>
 </html>

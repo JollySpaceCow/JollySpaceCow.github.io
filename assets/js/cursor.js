@@ -1,21 +1,5 @@
 (function() {
-  // Inject CSS
-  const style = document.createElement('style');
-  style.textContent = `
-    .cursor-dot {
-      position: fixed; pointer-events: none; z-index: 9999;
-      width: 6px; height: 6px; border-radius: 50%;
-      background: var(--accent, #c8a96e);
-      transform: translate(-50%,-50%);
-      transition: transform 0.15s ease-out, background-color 0.15s ease-out;
-    }
-    #cursor-canvas {
-      position: fixed; inset: 0; z-index: 9998; pointer-events: none;
-    }
-  `;
-  document.head.appendChild(style);
-
-  // Inject elements
+  // Cursor elements are created programmatically to keep HTML clean
   const dot = document.createElement('div');
   dot.className = 'cursor-dot';
   dot.id = 'cdot';

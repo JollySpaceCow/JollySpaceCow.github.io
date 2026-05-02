@@ -1,0 +1,85 @@
+/* ── SHARED PAGE COMPONENTS ── */
+
+.page-hero {
+  padding: 5rem 2rem 3rem;
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.page-hero h1 {
+  font-family: 'Outfit', sans-serif;
+  font-size: clamp(2.2rem, 6vw, 3.5rem);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  margin-bottom: 0.8rem;
+  color: var(--text-1);
+}
+
+.page-hero p {
+  color: var(--text-2);
+  font-size: 1rem;
+  max-width: 600px;
+  line-height: 1.6;
+}
+
+.section-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 1rem;
+  display: block;
+}
+
+/* ── Common Section Layout ── */
+.section {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0 2rem 4rem;
+}
+
+.grid-container {
+  display: grid;
+  gap: 1.5rem;
+}
+
+/* ── Standard Footer ── */
+.site-footer {
+  border-top: 1px solid var(--border);
+  padding: 3rem 2rem;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-3);
+  margin-top: 4rem;
+}
+/* ── FAQ / About Components ── */
+.qa-list {
+  display: flex; flex-direction: column; gap: 1px;
+  border: 1px solid var(--border); border-radius: 16px;
+  overflow: hidden; background: var(--border);
+}
+.qa-item {
+  background: var(--bg-2); padding: 1.75rem;
+}
+.qa-q {
+  font-family: 'Outfit', sans-serif; font-size: 1.1rem;
+  font-weight: 700; color: var(--accent); margin-bottom: 0.5rem;
+}
+.qa-a {
+  color: var(--text-2); font-size: 14px; line-height: 1.7;
+}
+.contact-chips {
+  display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 1rem;
+}
+.contact-chip {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  padding: 0.6rem 1.2rem; background: var(--bg-2);
+  border: 1px solid var(--border); border-radius: 100px;
+  font-size: 13px; font-weight: 500; color: var(--text-2);
+  text-decoration: none; transition: var(--transition);
+}
+.contact-chip:hover {
+  color: var(--text-1); background: var(--bg-3); border-color: var(--accent);
+  transform: translateY(-2px);
+}
