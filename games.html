@@ -41,24 +41,14 @@
   <div class="section">
     <div class="games-grid">
 
-      <!-- GAME 1: Pat the Cat -->
-      <article class="game-box">
+      <!-- GAME 1: Amber's Beef -->
+      <article class="game-box" id="beef-game">
         <header class="game-header">
-          <p class="game-title">Pat the Cat</p>
-          <p class="game-desc">Click to administer pats. Every pat matters in the grand cosmic scheme.</p>
+          <p class="game-title">Amber's Beef</p>
+          <p class="game-desc">A culinary masterpiece in 26 frames. Hover to witness the beef.</p>
         </header>
-        <div class="game-arena">
-          <div class="game-stat">
-            <div class="game-val pat-counter" id="pat-count">0</div>
-            <div class="game-label">total pats</div>
-          </div>
-
-          <div class="cat-container" id="cat-btn">
-            <img src="images/cat.jpg" alt="cat" class="cat-img" onerror="this.style.display='none';document.getElementById('cat-fallback').style.display='flex'">
-            <div class="cat-placeholder" id="cat-fallback" style="display:none;">🐱</div>
-          </div>
-
-          <p class="game-msg" id="pat-msg">Awaiting pats.</p>
+        <div class="game-arena" style="padding: 0; flex: 1; display: flex; flex-direction: column;">
+           <div id="beef-scrubber-container" style="flex: 1; display: flex; flex-direction: column;"></div>
         </div>
       </article>
 
@@ -88,13 +78,6 @@
 
     </div>
   </div>
-
-  <section class="section">
-    <span class="section-label" style="margin-bottom: 2rem;">Interactive Sequences</span>
-    <div class="wall-grid" id="scrub-grid">
-      <!-- Rendered by games.js -->
-    </div>
-  </section>
 
   <footer class="site-footer"></footer>
 </div>

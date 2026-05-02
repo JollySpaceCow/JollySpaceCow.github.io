@@ -161,7 +161,7 @@
   tick();
 
   const initHover = () => {
-    document.querySelectorAll('a, button, .pill, .wide-cat-wrap, .cat-container, [onclick]').forEach(el => {
+    document.querySelectorAll('a, button, .pill, .wide-cat-wrap, .cat-container, .scrub-viewport, [onclick]').forEach(el => {
       if(el.dataset.cursorBound) return;
       el.dataset.cursorBound = "true";
       el.addEventListener('mouseenter', () => { isHovering = true; dot.style.transform='translate(-50%,-50%) scale(0.5)'; dot.style.backgroundColor='rgba(255,230,150,0.5)'; });

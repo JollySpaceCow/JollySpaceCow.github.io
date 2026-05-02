@@ -1,7 +1,7 @@
 // Jolly Space Cow — Service Worker
 // Caches the site for offline use and serves a fun offline page when disconnected
 
-const CACHE_NAME = 'jsc-v3'; // Version 3: Modular Architecture
+const CACHE_NAME = 'jsc-v15'; // Version 15: Hide cursor trail when scrubbing
 
 const PRECACHE_URLS = [
   './',

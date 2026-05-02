@@ -4,64 +4,14 @@
  */
 
 (function() {
-  const SCRUBBERS = [{ name: 'Beef', frames: 26 }];
+  const SCRUBBERS = [
+    { id: 'beef', name: "Amber's Beef", folder: 'Beef', frames: 26, target: 'beef-scrubber-container' }
+  ];
 
   const GameApp = {
     init() {
-      this.initPatGame();
       this.initWideGame();
       this.initScrubbers();
-    },
-
-    /* ── PAT THE CAT ── */
-    initPatGame() {
-      let pats = parseInt(localStorage.getItem('jsc_pats') || '0');
-      const msgs = [
-        'Awaiting pats.', 'Good.', 'More.', 'The cat approves.', 
-        'Keep going.', 'Outstanding.', 'The cat is pleased.', 
-        'Incredible form.', 'You pat with great skill.', 
-        'The cat vibrates with joy.', 'Transcendent patting.', 'You have ascended.'
-      ];
-
-      const countEl = document.getElementById('pat-count');
-      const msgEl = document.getElementById('pat-msg');
-      const btn = document.getElementById('cat-btn');
-      if (!btn) return;
-
-      const updateDisplay = () => {
-        countEl.textContent = pats.toLocaleString();
-        const idx = Math.min(Math.floor(Math.log2(pats + 1)), msgs.length - 1);
-        msgEl.textContent = msgs[idx];
-        localStorage.setItem('jsc_pats', pats);
-      };
-
-      btn.addEventListener('click', (e) => {
-        pats++;
-        updateDisplay();
-
-        // Ripple effect
-        const rect = btn.getBoundingClientRect();
-        const rip = document.createElement('div');
-        rip.className = 'ripple';
-        const size = 40;
-        rip.style.cssText = `width:${size}px;height:${size}px;left:${e.clientX - rect.left - size/2}px;top:${e.clientY - rect.top - size/2}px;`;
-        btn.appendChild(rip);
-        setTimeout(() => rip.remove(), 500);
-
-        // Shake effect
-        btn.style.transform = `rotate(${(Math.random() - 0.5) * 8}deg) scale(1.05)`;
-        setTimeout(() => { btn.style.transform = ''; btn.style.transition = 'transform 0.3s ease'; }, 100);
-
-        // Float number
-        const fl = document.createElement('div');
-        fl.className = 'float-num';
-        fl.textContent = '+1';
-        fl.style.cssText = `left:${e.clientX - 12}px;top:${e.clientY - 20}px;`;
-        document.body.appendChild(fl);
-        setTimeout(() => fl.remove(), 800);
-      });
-
-      updateDisplay();
     },
 
     /* ── WIDE = WISE ── */
@@ -79,7 +29,7 @@
       const img = document.getElementById('wide-cat-img');
       const fb = document.getElementById('wide-fallback');
       const wrap = document.querySelector('.wide-cat-wrap');
-      const resetBtn = document.querySelector('[onclick="resetWide()"]'); // We'll replace this listener
+      const resetBtn = document.querySelector('.btn-ghost');
 
       if (!wrap) return;
 
@@ -98,7 +48,6 @@
       });
 
       if (resetBtn) {
-        resetBtn.removeAttribute('onclick'); // Clean up old attribute
         resetBtn.addEventListener('click', (e) => {
           e.stopPropagation();
           scale = 1.0;
@@ -109,50 +58,123 @@
 
     /* ── SCRUBBERS ── */
     initScrubbers() {
-      const grid = document.getElementById('scrub-grid');
-      if (!grid) return;
+      SCRUBBERS.forEach((s, idx) => {
+        const container = document.getElementById(s.target);
+        if (!container) return;
 
-      grid.innerHTML = SCRUBBERS.map((s, idx) => {
-        const firstFrame = `assets/images/sequences/${s.name}/frame_001.webp`;
-        return `
-          <div class="scrub-card" data-index="${idx}">
-            <img src="${firstFrame}" alt="${s.name}" class="scrub-frame" id="scrub-img-${idx}" draggable="false">
-            <div class="scrub-counter" id="scrub-counter-${idx}">1 / ${s.frames}</div>
-            <div class="scrub-progress" id="scrub-progress-${idx}"></div>
-            <div class="scrub-info">
+        const firstFrame = `assets/images/sequences/${s.folder}/frame_0000.webp`;
+        container.innerHTML = `
+          <div class="scrub-card" style="border:none; border-radius:0; height: 100%; min-height: 400px; display: flex; flex-direction: column;">
+            <div class="scrub-viewport" style="flex: 1; position: relative; overflow: hidden; background: #000; display: flex; align-items: center; justify-content: center; cursor: ew-resize;">
+              <img src="${firstFrame}" alt="${s.name}" class="scrub-frame" id="scrub-img-${idx}" draggable="false" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+              <div class="scrub-counter" id="scrub-counter-${idx}">1 / ${s.frames}</div>
+              <div class="scrub-progress" id="scrub-progress-${idx}"></div>
+            </div>
+            <div class="scrub-info" style="background: var(--bg-2); border-top: 1px solid var(--border);">
               <span class="scrub-title">${s.name}</span>
-              <span class="scrub-hint">← hover to scrub →</span>
+              <span class="scrub-hint" id="scrub-hint-${idx}">← slide to scrub →</span>
             </div>
           </div>`;
-      }).join('');
 
-      SCRUBBERS.forEach((s, idx) => {
-        const frames = [];
-        for (let i = 1; i <= s.frames; i++) {
-          const img = new Image();
-          img.src = `assets/images/sequences/${s.name}/frame_${String(i).padStart(3, '0')}.webp`;
-          frames.push(img);
-        }
-
-        const card = document.querySelector(`[data-index="${idx}"]`);
         const imgEl = document.getElementById(`scrub-img-${idx}`);
         const counter = document.getElementById(`scrub-counter-${idx}`);
         const progress = document.getElementById(`scrub-progress-${idx}`);
+        const hint = document.getElementById(`scrub-hint-${idx}`);
+        const viewport = container.querySelector('.scrub-viewport');
 
-        card.addEventListener('mousemove', e => {
-          const rect = card.getBoundingClientRect();
-          const x = (e.clientX - rect.left) / rect.width;
-          const frameIdx = Math.min(Math.floor(x * s.frames), s.frames - 1);
-          if (frames[frameIdx].complete) imgEl.src = frames[frameIdx].src;
-          counter.textContent = `${frameIdx + 1} / ${s.frames}`;
-          progress.style.width = `${((frameIdx + 1) / s.frames) * 100}%`;
+        if (!imgEl || !viewport) return;
+
+        const updateTarget = (e) => {
+          clearTimeout(idleTimer);
+          isIdling = false;
+          returnVelocity = 0.2;
+
+          const rect = viewport.getBoundingClientRect();
+          const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+          targetFrame = Math.min(Math.floor(x * s.frames), s.frames - 1);
+          
+          // If the distance is small (normal smooth scrubbing), stay instant
+          // If it's a large jump (7+ frames), let the animation catch up
+          if (Math.abs(targetFrame - currentFrame) < 7) {
+            currentFrame = targetFrame;
+            renderFrame(currentFrame);
+          }
+        };
+
+        let currentFrame = 0;
+        let targetFrame = 0;
+        let lastTick = 0;
+        let idleTimer = null;
+        let isIdling = false;
+        let returnVelocity = 0.2;
+
+        const renderFrame = (f) => {
+          const frameIdx = Math.max(0, Math.min(s.frames - 1, f));
+          const frameStr = String(frameIdx).padStart(4, '0');
+          imgEl.src = `assets/images/sequences/${s.folder}/frame_${frameStr}.webp`;
+          if (counter) counter.textContent = `${frameIdx + 1} / ${s.frames}`;
+          if (progress) progress.style.width = `${((frameIdx + 1) / s.frames) * 100}%`;
+        };
+
+        const animate = (timestamp) => {
+          const delta = timestamp - lastTick;
+          
+          if (isIdling) {
+            if (currentFrame > 0) {
+              // Ease-In Return: Start slow, get faster
+              currentFrame -= returnVelocity;
+              returnVelocity *= 1.08; // Exponential acceleration
+              renderFrame(Math.floor(currentFrame));
+              if (hint) hint.textContent = 'IDLING...';
+            } else {
+              currentFrame = 0;
+              renderFrame(0);
+              if (hint) hint.textContent = 'RESTING';
+            }
+          } else {
+            // Normal Catch-up logic (linear/fast)
+            if (delta >= 8) { // 8ms tick for catch-up
+              if (Math.abs(currentFrame - targetFrame) > 0.1) {
+                if (currentFrame < targetFrame) currentFrame++;
+                else currentFrame--;
+                renderFrame(Math.round(currentFrame));
+                if (hint) {
+                  hint.textContent = 'CATCHING UP...';
+                  hint.style.color = 'var(--accent)';
+                }
+              } else if (hint && hint.textContent === 'CATCHING UP...') {
+                hint.textContent = 'MATCHED';
+                hint.style.color = '';
+              }
+              lastTick = timestamp;
+            }
+          }
+          requestAnimationFrame(animate);
+        };
+
+        requestAnimationFrame(animate);
+
+        viewport.addEventListener('mousemove', updateTarget);
+        viewport.addEventListener('mouseenter', updateTarget);
+        
+        viewport.addEventListener('mouseleave', () => {
+          if (hint) {
+            hint.textContent = 'IDLE IN 1s...';
+            hint.style.color = '';
+          }
+          clearTimeout(idleTimer);
+          idleTimer = setTimeout(() => {
+            isIdling = true;
+            targetFrame = 0;
+          }, 1000);
         });
 
-        card.addEventListener('mouseleave', () => {
-          imgEl.src = frames[0].src;
-          counter.textContent = `1 / ${s.frames}`;
-          progress.style.width = '0%';
-        });
+        imgEl.onerror = () => {
+          if (hint) {
+            hint.textContent = 'Error: Frame not found';
+            hint.style.color = '#ff6b6b';
+          }
+        };
       });
     }
   };
