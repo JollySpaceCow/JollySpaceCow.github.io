@@ -9,6 +9,7 @@ const App = {
     this.initNavigation();
     this.initFooter();
     this.initDevTools();
+    this.initMooSound();
     console.log("🚀 Jolly Space Cow App Initialized");
   },
 
@@ -95,6 +96,74 @@ const App = {
         }
       });
     }
+  },
+
+  /**
+   * Adds click listener to the 'moo' kicker to play the moo sound.
+   * Supports polyphony (overlapping sounds) for spamming.
+   */
+  /**
+   * High-performance Moo Interaction System
+   * Optimized for "senior-grade" spamming and low memory churn.
+   */
+  initMooSound() {
+    const kicker = document.querySelector('.hero-kicker');
+    if (!kicker) return;
+
+    const PATHS = ['assets/audio/moo.wav', 'assets/audio/Moo.mp3'];
+    let workingPath = null;
+    const POOL_SIZE = 8; // Audio object pool to prevent GC thrashing during spam
+    const audioPool = [];
+    let poolIndex = 0;
+
+    // 1. Path Discovery: Find the first working audio path
+    const discoverPath = async () => {
+      for (const path of PATHS) {
+        try {
+          const testAudio = new Audio(path);
+          await new Promise((resolve, reject) => {
+            testAudio.oncanplaythrough = resolve;
+            testAudio.onerror = reject;
+            // Short timeout to avoid hanging if file is weird
+            setTimeout(reject, 1000);
+          });
+          workingPath = path;
+          // 2. Initialize Pool once path is found
+          for (let i = 0; i < POOL_SIZE; i++) audioPool.push(new Audio(workingPath));
+          console.log(`🔊 Moo System: Using ${workingPath}`);
+          break;
+        } catch (e) {
+          continue;
+        }
+      }
+    };
+
+    discoverPath();
+
+    kicker.addEventListener('click', (e) => {
+      // 3. Optimized Playback
+      if (workingPath && audioPool.length > 0) {
+        const sound = audioPool[poolIndex];
+        sound.currentTime = 0;
+        sound.play().catch(() => {});
+        poolIndex = (poolIndex + 1) % POOL_SIZE;
+      }
+
+      // 4. Visual Feedback: Floating Text
+      const pop = document.createElement('div');
+      pop.className = 'moo-pop';
+      pop.innerText = 'moo!';
+      pop.style.left = `${e.clientX}px`;
+      pop.style.top = `${e.clientY}px`;
+      document.body.appendChild(pop);
+      setTimeout(() => pop.remove(), 800);
+
+      // 5. Visual Feedback: Kicker Spring (Class-based for performance)
+      kicker.classList.remove('is-popping');
+      void kicker.offsetWidth; // Force reflow to restart animation
+      kicker.classList.add('is-popping');
+      setTimeout(() => kicker.classList.remove('is-popping'), 150);
+    });
   }
 };
 
