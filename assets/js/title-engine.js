@@ -579,6 +579,17 @@ const TitleEngine = {
           this.oSwapping = false;
         }
         break;
+
+      case 'spin':
+        if (p <= 0.6) {
+          const ep = 1 - Math.pow(1 - (p / 0.6), 3);
+          state.rot = ep * Math.PI * 2;
+          const s = 1 + Math.sin(ep * Math.PI) * 0.3;
+          state.scaleX = state.scaleY = s;
+        } else {
+          anim.mode = 'idle';
+        }
+        break;
     }
     return state;
   },
@@ -704,7 +715,17 @@ const TitleEngine = {
       this.handleOSwap(letter);
     } else if (letter.char === 'l' && (letter.index === 2 || letter.index === 3)) {
       this.toggleSpace();
+    } else if (letter.char === 'c' && letter.index === 9) {
+      this.handleStarfieldToggle(letter);
     }
+  },
+
+  handleStarfieldToggle(letter) {
+    if (window.toggleStarfieldMode) {
+      window.toggleStarfieldMode();
+    }
+    letter.anim.mode = 'spin';
+    letter.anim.start = performance.now();
   },
 
   handleOSwap(clickedLetter) {

@@ -8,7 +8,6 @@ const App = {
     this.registerServiceWorker();
     this.initNavigation();
     this.initFooter();
-    this.initDevTools();
     this.initMooSound();
     console.log("🚀 Jolly Space Cow App Initialized");
   },
@@ -65,38 +64,7 @@ const App = {
     }
   },
 
-  /**
-   * Shared development tools (Warp Mode, etc.)
-   */
-  initDevTools() {
-    const devMenu = document.getElementById('dev-menu');
-    if (!devMenu) return;
 
-    // Secret handshake to show dev menu: Press 'D' 3 times
-    let dCount = 0;
-    window.addEventListener('keydown', (e) => {
-      if (e.key.toLowerCase() === 'd') {
-        dCount++;
-        if (dCount === 3) {
-          devMenu.style.display = devMenu.style.display === 'none' ? 'block' : 'none';
-          dCount = 0;
-        }
-      } else {
-        dCount = 0;
-      }
-    });
-
-    // Warp toggle logic (moved from inline)
-    const warpToggle = document.getElementById('warp-toggle');
-    if (warpToggle) {
-      window.addEventListener('keydown', (e) => {
-        if (e.key.toLowerCase() === 'e') {
-          warpToggle.checked = !warpToggle.checked;
-          warpToggle.dispatchEvent(new Event('change'));
-        }
-      });
-    }
-  },
 
   /**
    * Adds click listener to the 'moo' kicker to play the moo sound.

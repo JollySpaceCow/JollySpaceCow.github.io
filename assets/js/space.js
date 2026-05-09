@@ -118,33 +118,55 @@
     drawNebulae(accumulatedTime);
     drawMouseGlow();
 
-    const isWarp = window.warpMode;
+    const mode = window.starfieldMode || 0;
     const centerX = W / 2, centerY = H / 2;
 
     for (let i = 0; i < stars.length; i++) {
       const s = stars[i];
       s.twinkle += s.ts;
-      const op = s.opacity * (0.7 + 0.3 * Math.sin(s.twinkle));
+      let op = s.opacity * (0.7 + 0.3 * Math.sin(s.twinkle));
+      if (mode >= 1) op = Math.min(1.0, op * 1.6); // Boost opacity for warp modes
+
       const px = s.x + (smoothMouse.x - 0.5) * s.r * 12;
       const py = s.y + (smoothMouse.y - 0.5) * s.r * 12;
 
-      const col = s.sat > 0 ? `hsla(${s.hue},${s.sat}%, 90%, ${op})` : `rgba(240,240,255, ${op})`;
+      let col = s.sat > 0 ? `hsla(${s.hue},${s.sat}%, 90%, ${op})` : `rgba(240,240,255, ${op})`;
+      
+      // Mode 3: Hyperspace (Rainbow stars)
+      if (mode === 3) {
+        col = `hsla(${(accumulatedTime * 0.1 + i * 2) % 360}, 80%, 70%, ${op})`;
+      }
 
-      if (isWarp) {
+      if (mode >= 1) { // Warp, Warpspeed, or Hyperspace
         let dx = s.x - centerX, dy = s.y - centerY;
+        
         let f = s.r * 0.0005 + 0.0001;
+        if (mode === 1) f *= 1.2; // Slight speed boost for basic warp
+        if (mode === 2) f *= 12; // Warpspeed
+        if (mode === 3) f *= 35; // Hyperspace
+        
         let vx = dx * f, vy = dy * f;
         s.x += vx; s.y += vy;
 
-        if (s.x < -50 || s.x > W + 50 || s.y < -50 || s.y > H + 50) {
+        if (s.x < -100 || s.x > W + 100 || s.y < -100 || s.y > H + 100) {
           let angle = Math.random() * Math.PI * 2;
-          s.x = centerX + Math.cos(angle) * 20;
-          s.y = centerY + Math.sin(angle) * 20;
+          let dist = Math.random() * 50;
+          s.x = centerX + Math.cos(angle) * dist;
+          s.y = centerY + Math.sin(angle) * dist;
         }
 
         cx.strokeStyle = col;
-        cx.lineWidth = s.r;
-        cx.beginPath(); cx.moveTo(px, py); cx.lineTo(px - vx * 2, py - vy * 2); cx.stroke();
+        cx.lineWidth = Math.max(0.8, s.r * (mode >= 2 ? 2.5 : 1.5)); // Boost thickness
+        cx.beginPath(); 
+        cx.moveTo(px, py); 
+        
+        // Longer trails for higher modes
+        let trailLength = 5; // Basic warp trails
+        if (mode === 2) trailLength = 12;
+        if (mode === 3) trailLength = 25;
+        
+        cx.lineTo(px - vx * trailLength, py - vy * trailLength); 
+        cx.stroke();
       } else {
         cx.fillStyle = col;
         if (s.r > 1.1) {
@@ -167,19 +189,13 @@
   
   resize(); 
   window.spacePaused = false;
+  window.starfieldMode = 0; // 0: Drift, 1: Warp, 2: Warpspeed, 3: Hyperspace
   requestAnimationFrame(draw);
 
-  // Dev Menu
-  window.warpMode = false;
-  window.addEventListener('keydown', (e) => {
-    if (e.key === 'e' || e.key === 'E') {
-      const dm = document.getElementById('dev-menu');
-      if (dm) dm.style.display = dm.style.display === 'none' ? 'block' : 'none';
-    }
-  });
-
-  document.addEventListener('DOMContentLoaded', () => {
-    const wt = document.getElementById('warp-toggle');
-    if (wt) wt.addEventListener('change', e => { window.warpMode = e.target.checked; });
-  });
+  // Global toggle function for Title Engine to call
+  window.toggleStarfieldMode = function() {
+    window.starfieldMode = (window.starfieldMode + 1) % 4;
+    console.log("🌌 Starfield Mode:", window.starfieldMode);
+    return window.starfieldMode;
+  };
 })();
