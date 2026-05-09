@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jolly Space Cow</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@900&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    * { user-select: none; -webkit-user-select: none; }
+
+    :root {
+      --accent: #c8a96e;
+      --text-1: #f1f1f1;
+      --text-2: #aaaaaa;
+      --text-3: #555555;
+      --bg-2: #1e1e1e;
+      --border: #333;
+    }
+
+    body {
+      background: #07070f;
+      color: var(--text-1);
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+      cursor: none;
+    }
+
+    /* ── trail cursor ── */
+    .trail-dot {
+      position: fixed; pointer-events: none; z-index: 9999;
+      border-radius: 50%; transform: translate(-50%,-50%);
+    }
+
+    #space-canvas { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+
+    /* ── nav ── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      padding: 1.1rem 2rem;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .nav-logo {
+      font-family: 'Outfit', sans-serif; font-weight: 900;
+      font-size: 0.9rem; color: var(--text-1); text-decoration: none;
+    }
+    .nav-links { display: flex; gap: 0.1rem; }
+    .nav-links a {
+      color: var(--text-3); text-decoration: none; font-size: 13px;
+      padding: 0.3rem 0.65rem; border-radius: 6px;
+      transition: color 0.15s, background 0.15s;
+    }
+    .nav-links a:hover { color: var(--text-1); background: rgba(255,255,255,0.06); }
+    .nav-links a.active { color: var(--text-2); }
+
+    /* ── hero ── */
+    .hero {
+      position: relative; z-index: 1;
+      min-height: 100vh;
+      display: flex; flex-direction: column;
+      justify-content: center; align-items: center;
+      padding: 0 2rem; text-align: center;
+    }
+
+    .hero-kicker {
+      font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase;
+      color: var(--text-3); margin-bottom: 1.5rem;
+      opacity: 0; animation: fadeUp 0.6s 0.2s forwards;
+    }
+
+    /* ── THE TITLE ── */
+    .hero-title {
+      font-family: 'Outfit', sans-serif; font-weight: 900;
+      font-size: clamp(3.5rem, 10vw, 8rem);
+      line-height: 1; letter-spacing: -0.04em;
+      margin-bottom: 1.5rem;
+      opacity: 0; animation: fadeUp 0.7s 0.3s forwards;
+      white-space: nowrap;
+    }
+
+    .letter {
+      display: inline-block;
+      background: linear-gradient(170deg,
+        #a8d8f0 0%, #7ec8e8 15%, #b8e8f8 30%,
+        #e8f6fc 50%, #d0eef8 65%, #9dd6f0 80%, #c8eefa 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      filter: drop-shadow(0 0 18px rgba(120,210,255,0.45));
+      cursor: pointer;
+      position: relative;
+      transition: filter 0.15s;
+      transform-origin: bottom center;
+    }
+    .letter:hover {
+      filter: drop-shadow(0 0 28px rgba(120,210,255,0.75));
+    }
+    .letter.space-char {
+      width: 0.35em; cursor: default; pointer-events: none;
+    }
+
+    .hero-sub {
+      font-size: 1rem; color: rgba(241,241,241,0.32);
+      margin-bottom: 2rem; letter-spacing: 0.01em;
+      opacity: 0; animation: fadeUp 0.7s 0.5s forwards;
+    }
+
+    .hero-links {
+      display: flex; flex-wrap: wrap; gap: 0.55rem; justify-content: center;
+      opacity: 0; animation: fadeUp 0.7s 0.65s forwards;
+    }
+
+    .pill {
+      display: inline-flex; align-items: center; gap: 0.3rem;
+      padding: 0.45rem 0.9rem; border-radius: 100px;
+      font-size: 13px; font-weight: 500; text-decoration: none;
+      transition: all 0.2s; border: 1px solid transparent; cursor: none;
+    }
+    .pill-yt  { background: #cc0000; color: #fff; }
+    .pill-yt:hover { background: #e60000; transform: translateY(-1px); }
+    .pill-ghost {
+      background: transparent; color: rgba(241,241,241,0.45);
+      border-color: rgba(255,255,255,0.12);
+    }
+    .pill-ghost:hover { color: var(--text-1); border-color: rgba(255,255,255,0.3); transform: translateY(-1px); }
+
+    /* ── letter animations ── */
+    @keyframes fadeUp {
+      from { opacity:0; transform:translateY(18px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+
+    @keyframes jumpBounce {
+      0%   { transform: translateY(0)    scaleX(1)   scaleY(1); }
+      25%  { transform: translateY(-90px) scaleX(0.9) scaleY(1.1); }
+      50%  { transform: translateY(0)    scaleX(1.3) scaleY(0.7); }
+      65%  { transform: translateY(-30px) scaleX(0.95) scaleY(1.05); }
+      80%  { transform: translateY(0)    scaleX(1.1) scaleY(0.9); }
+      100% { transform: translateY(0)    scaleX(1)   scaleY(1); }
+    }
+
+    @keyframes blastOff {
+      0%   { transform: translateY(0) scale(1); opacity:1; }
+      15%  { transform: translateY(12px) scale(1.05); }
+      100% { transform: translateY(-120vh) scale(0.4); opacity:0; }
+    }
+
+    @keyframes anvilFall {
+      0%   { transform: translateY(0) rotate(-3deg); }
+      60%  { transform: translateY(var(--fall-dist)) rotate(4deg); animation-timing-function: ease-in; }
+      75%  { transform: translateY(calc(var(--fall-dist) - 24px)) rotate(-2deg); }
+      88%  { transform: translateY(var(--fall-dist)) rotate(2deg); }
+      100% { transform: translateY(var(--fall-dist)) rotate(0deg); }
+    }
+
+    @keyframes letterSpin {
+      from { transform: rotate(0deg); }
+      to   { transform: rotate(360deg); }
+    }
+
+    @keyframes eggPop {
+      0%   { transform: translateY(20px) scale(0); opacity:0; }
+      40%  { transform: translateY(-10px) scale(1.2); opacity:1; }
+      60%  { transform: translateY(0) scale(1); }
+      100% { transform: translateY(var(--egg-fall)) scale(1); opacity:1; }
+    }
+
+    @keyframes walkIn {
+      from { transform: translateX(-120px) scaleX(1); }
+      to   { transform: translateX(110vw) scaleX(1); }
+    }
+
+    @keyframes squishMorph {
+      0%   { transform: scaleX(1)   scaleY(1); }
+      30%  { transform: scaleX(1.5) scaleY(0.6); }
+      55%  { transform: scaleX(0.8) scaleY(1.2); }
+      75%  { transform: scaleX(1.1) scaleY(0.95); }
+      100% { transform: scaleX(1)   scaleY(1); }
+    }
+
+    @keyframes smokeRise {
+      0%   { transform: translate(-50%,-50%) scale(0.3); opacity:0.7; }
+      100% { transform: translate(-50%, calc(-50% - 120px)) scale(2.5); opacity:0; }
+    }
+
+    /* ── physics letters (p explosion) ── */
+    .phys-letter {
+      position: fixed;
+      font-family: 'Outfit', sans-serif; font-weight: 900;
+      font-size: clamp(3.5rem, 10vw, 8rem);
+      background: linear-gradient(170deg, #a8d8f0, #7ec8e8, #b8e8f8, #e8f6fc, #9dd6f0);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+      pointer-events: none; z-index: 600; display: inline-block;
+      line-height: 1; filter: drop-shadow(0 0 18px rgba(120,210,255,0.45));
+    }
+    /* hide original letters during physics */
+    body.physics-mode .hero-title { opacity: 0 !important; }
+
+    /* ── Mr Finance ── */
+    .mr-finance {
+      position: fixed; bottom: 60px; left: -80px;
+      font-size: 3.5rem; z-index: 500; pointer-events: none;
+      animation: walkIn 3.5s linear forwards;
+    }
+
+    /* ── falling egg ── */
+    .falling-egg {
+      position: fixed; font-size: 2.2rem;
+      z-index: 500; pointer-events: none;
+    }
+
+    /* ── smoke ── */
+    .smoke-puff {
+      position: fixed; border-radius: 50%;
+      background: radial-gradient(circle, rgba(200,200,200,0.7) 0%, rgba(150,150,150,0) 70%);
+      pointer-events: none; z-index: 450;
+      animation: smokeRise 1s ease-out forwards;
+    }
+
+    /* ── freeze overlay ── */
+    body.frozen #space-canvas { animation-play-state: paused; }
+    body.frozen .hero-kicker,
+    body.frozen .hero-sub,
+    body.frozen .hero-links { animation-play-state: paused; }
+
+    /* ── play button letter ── */
+    .letter.is-play {
+      background: none !important;
+      -webkit-background-clip: unset !important;
+      background-clip: unset !important;
+      color: #fff !important;
+      filter: none !important;
+    }
+
+    /* ll play-button overlay — keeps layout stable */
+    #l-l1 { position: relative; }
+    #l-l1-play {
+      position: absolute; inset: 0;
+      display: none; align-items: center; justify-content: center;
+      background: linear-gradient(170deg, #a8d8f0, #7ec8e8, #b8e8f8, #e8f6fc, #9dd6f0);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+      font-size: 0.55em; line-height: 1;
+      pointer-events: none;
+    }
+    #l-l1[data-play] > .l-char { visibility: hidden; }
+    #l-l1[data-play] #l-l1-play { display: flex; }
+
+    /* ── orbital o wrapper ── */
+    .orbital-o {
+      position: fixed; pointer-events: none; z-index: 600;
+      font-family: 'Outfit', sans-serif; font-weight: 900;
+      font-size: clamp(3.5rem, 10vw, 8rem);
+      background: linear-gradient(170deg, #a8d8f0, #e8f6fc, #9dd6f0);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+      filter: drop-shadow(0 0 18px rgba(120,210,255,0.45));
+      line-height: 1;
+    }
+
+    footer {
+      position: relative; z-index: 1;
+      border-top: 1px solid var(--border);
+      padding: 2rem; text-align: center;
+      font-size: 13px; color: var(--text-3);
+    }
+
+    /* ── hint tooltip ── */
+    .letter-hint {
+      position: absolute; bottom: calc(100% + 6px); left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.75); color: #fff;
+      font-size: 10px; padding: 3px 7px; border-radius: 4px;
+      white-space: nowrap; pointer-events: none;
+      opacity: 0; transition: opacity 0.15s;
+      font-family: 'Inter', sans-serif; font-weight: 400;
+      letter-spacing: 0.05em;
+    }
+    .letter:hover .letter-hint { opacity: 1; }
+  </style>
+</head>
+<body>
+<canvas id="space-canvas"></canvas>
+
+<nav>
+  <a href="index.html" class="nav-logo">JollySpaceCow</a>
+  <div class="nav-links">
+    <a href="index.html" class="active">Home</a>
+    <a href="videos.html">Videos</a>
+    <a href="gallery.html">Gallery</a>
+    <a href="games.html">Games</a>
+    <a href="about.html">About</a>
+  </div>
+</nav>
+
+<div class="hero">
+  <p class="hero-kicker">🐄 moo</p>
+
+  <h1 class="hero-title" id="logo-title">
+    <span class="letter" id="l-J" data-hint="jump">J<span class="letter-hint">jump</span></span><span
+    class="letter" id="l-o1" data-hint="swap">o<span class="letter-hint">swap</span></span><span
+    class="letter" id="l-l1" data-hint="freeze"><span class="l-char">l</span><span id="l-l1-play">▶</span><span class="letter-hint">freeze</span></span><span
+    class="letter" id="l-l2" data-hint="freeze">l<span class="letter-hint">freeze</span></span><span
+    class="letter" id="l-y" data-hint="colour">y<span class="letter-hint">colour</span></span><span
+    class="letter space-char"> </span><span
+    class="letter" id="l-S" data-hint="blast off">S<span class="letter-hint">blast off</span></span><span
+    class="letter" id="l-p" data-hint="explode">p<span class="letter-hint">explode</span></span><span
+    class="letter" id="l-a" data-hint="orbit">a<span class="letter-hint">orbit</span></span><span
+    class="letter" id="l-c" data-hint="starfield">c<span class="letter-hint">starfield</span></span><span
+    class="letter" id="l-e" data-hint="morph">e<span class="letter-hint">morph</span></span><span
+    class="letter space-char"> </span><span
+    class="letter" id="l-C" data-hint="egg">C<span class="letter-hint">egg</span></span><span
+    class="letter" id="l-o2" data-hint="swap">o<span class="letter-hint">swap</span></span><span
+    class="letter" id="l-w" data-hint="anvil">w<span class="letter-hint">anvil</span></span>
+  </h1>
+
+  <p class="hero-sub">Welcome to the stellar experience!</p>
+
+  <div class="hero-links">
+    <a href="https://www.youtube.com/channel/UCpBcikf2fOhwMhp3Czj2CwA" class="pill pill-yt" target="_blank">▶ YouTube</a>
+    <a href="https://www.youtube.com/channel/UCpBcikf2fOhwMhp3Czj2CwA?sub_confirmation=1" class="pill pill-ghost" target="_blank">🔔 Subscribe</a>
+    <a href="https://jollyspacecow.itch.io" class="pill pill-ghost" target="_blank">🎮 itch.io</a>
+  </div>
+</div>
+
+<footer>© 2026 Jolly Space Cow · click the letters 🐄</footer>
+
+<script>
+/* ═══════════════════════════════════════════════
+   CURSOR TRAIL
+═══════════════════════════════════════════════ */
+const TRAIL = 16;
+const trail = [];
+let mx = -300, my = -300;
+for (let i = 0; i < TRAIL; i++) {
+  const d = document.createElement('div');
+  d.className = 'trail-dot';
+  const t = 1 - i / TRAIL, size = 2 + t * 6;
+  d.style.cssText = `width:${size}px;height:${size}px;background:rgba(200,169,110,${t*0.85});box-shadow:0 0 ${size*2}px rgba(200,169,110,${t*0.4});`;
+  document.body.appendChild(d);
+  trail.push({ el:d, x:-300, y:-300 });
+}
+document.addEventListener('mousemove', e => { mx=e.clientX; my=e.clientY; });
+(function animT() {
+  trail[0].x += (mx-trail[0].x)*0.35; trail[0].y += (my-trail[0].y)*0.35;
+  trail[0].el.style.left=trail[0].x+'px'; trail[0].el.style.top=trail[0].y+'px';
+  for (let i=1;i<TRAIL;i++) {
+    trail[i].x+=(trail[i-1].x-trail[i].x)*0.45; trail[i].y+=(trail[i-1].y-trail[i].y)*0.45;
+    trail[i].el.style.left=trail[i].x+'px'; trail[i].el.style.top=trail[i].y+'px';
+  }
+  requestAnimationFrame(animT);
+})();
+
+/* ═══════════════════════════════════════════════
+   SPACE CANVAS
+═══════════════════════════════════════════════ */
+const cv = document.getElementById('space-canvas');
+const cx = cv.getContext('2d');
+let W, H, stars=[], mouse={x:0.5,y:0.5};
+let starfieldMode = 0; // 0=normal 1=warp 2=dense 3=minimal
+let causticsHue = 220;
+let warpAngle = 0;
+
+function resize() { W=cv.width=innerWidth; H=cv.height=innerHeight; }
+
+function mkStar(mode) {
+  const dense = mode===2;
+  return {
+    x:Math.random()*W, y:Math.random()*H,
+    r:Math.random()*(dense?2.2:1.7)+0.15,
+    opacity:Math.random()*(dense?0.95:0.8)+0.1,
+    twinkle:Math.random()*Math.PI*2,
+    ts:Math.random()*0.025+0.004,
+    drift:(Math.random()-0.5)*0.022,
+    hue:Math.random()<0.08?(Math.random()<0.5?210:45):0,
+    sat:Math.random()<0.08?80:0,
+    // warp mode
+    wx:0, wy:0, wz:Math.random()*W,
+  };
+}
+function initStars() {
+  const n = starfieldMode===2?600:starfieldMode===3?60:420;
+  stars=Array.from({length:n},()=>mkStar(starfieldMode));
+}
+
+const nebulae=[
+  {x:0.12,y:0.22,r:0.24,h:220,o:0.045},
+  {x:0.84,y:0.58,r:0.21,h:260,o:0.038},
+  {x:0.5, y:0.82,r:0.19,h:195,o:0.033},
+  {x:0.7, y:0.15,r:0.16,h:30, o:0.028},
+];
+
+function drawNebulae(t) {
+  const hueShift = (causticsHue - 220);
+  nebulae.forEach(b=>{
+    const px=(b.x+Math.sin(t*0.00022+b.h)*0.014)*W;
+    const py=(b.y+Math.cos(t*0.00028+b.h)*0.014)*H;
+    const hue = b.h + hueShift;
+    const gr=cx.createRadialGradient(px,py,0,px,py,b.r*Math.max(W,H));
+    gr.addColorStop(0,`hsla(${hue},65%,62%,${b.o})`);
+    gr.addColorStop(0.5,`hsla(${hue},55%,50%,${b.o*0.25})`);
+    gr.addColorStop(1,'transparent');
+    cx.fillStyle=gr; cx.beginPath(); cx.arc(px,py,b.r*Math.max(W,H),0,Math.PI*2); cx.fill();
+  });
+}
+
+let shoot=null, shootStart=0;
+function maybeShoot(t) {
+  if(starfieldMode===1) return; // no shooting stars in warp
+  if(!shoot&&Math.random()<0.0007) {
+    shoot={x:Math.random()*W*0.75,y:Math.random()*H*0.45,len:Math.random()*140+70,angle:Math.PI/5+(Math.random()-0.5)*0.25};
+    shootStart=t;
+  }
+  if(shoot){
+    const p=(t-shootStart)/900; if(p>1){shoot=null;return;}
+    const tail=Math.min(p*2,1), fade=p>0.55?1-(p-0.55)/0.45:1;
+    const ex=shoot.x+Math.cos(shoot.angle)*shoot.len*tail;
+    const ey=shoot.y+Math.sin(shoot.angle)*shoot.len*tail;
+    const sx=ex-Math.cos(shoot.angle)*shoot.len*Math.min(tail,0.38);
+    const sy=ey-Math.sin(shoot.angle)*shoot.len*Math.min(tail,0.38);
+    const gr=cx.createLinearGradient(sx,sy,ex,ey);
+    gr.addColorStop(0,'transparent'); gr.addColorStop(1,`rgba(255,255,248,${0.95*fade})`);
+    cx.strokeStyle=gr; cx.lineWidth=1.4;
+    cx.beginPath(); cx.moveTo(sx,sy); cx.lineTo(ex,ey); cx.stroke();
+  }
+}
+
+function drawWarp(t) {
+  const cx2=W/2, cy2=H/2;
+  stars.forEach(s=>{
+    s.wz -= 8;
+    if(s.wz<=0) s.wz=W;
+    const k=128/s.wz;
+    const px=cx2+(s.x-cx2)*k, py=cy2+(s.y-cy2)*k;
+    const sz=Math.max(0.5,(1-s.wz/W)*4);
+    const op=Math.min(1,(1-s.wz/W)*2);
+    const pxp=cx2+(s.x-cx2)*(128/(s.wz+8));
+    const pyp=cy2+(s.y-cy2)*(128/(s.wz+8));
+    cx.strokeStyle=`rgba(200,220,255,${op})`;
+    cx.lineWidth=sz;
+    cx.beginPath(); cx.moveTo(pxp,pyp); cx.lineTo(px,py); cx.stroke();
+  });
+}
+
+function drawNormal(t) {
+  stars.forEach(s=>{
+    s.twinkle+=s.ts;
+    const op=s.opacity*(0.6+0.4*Math.sin(s.twinkle));
+    const px=s.x+(mouse.x-0.5)*s.r*5, py=s.y+(mouse.y-0.5)*s.r*5;
+    if(s.r>1.2&&op>0.45){
+      const gr=cx.createRadialGradient(px,py,0,px,py,s.r*5);
+      gr.addColorStop(0,`rgba(255,255,248,${op*0.35})`); gr.addColorStop(1,'transparent');
+      cx.fillStyle=gr; cx.beginPath(); cx.arc(px,py,s.r*5,0,Math.PI*2); cx.fill();
+    }
+    const col=s.sat>0?`hsla(${s.hue},${s.sat}%,90%,${op})`:`rgba(245,245,255,${op})`;
+    cx.fillStyle=col; cx.beginPath(); cx.arc(px,py,s.r,0,Math.PI*2); cx.fill();
+    s.x+=s.drift; if(s.x<0)s.x=W; if(s.x>W)s.x=0;
+  });
+}
+
+function draw(t) {
+  cx.clearRect(0,0,W,H);
+  cx.fillStyle='rgba(4,4,14,0.15)'; cx.fillRect(0,0,W,H);
+  if(starfieldMode!==1) {
+    const gr=cx.createLinearGradient(0,H*0.3,0,H*0.66);
+    gr.addColorStop(0,'transparent'); gr.addColorStop(0.5,'rgba(150,170,255,0.03)'); gr.addColorStop(1,'transparent');
+    cx.save(); cx.translate(W*0.5,H*0.48); cx.rotate(-0.18);
+    cx.fillStyle=gr; cx.fillRect(-W*0.8,-H*0.18,W*1.6,H*0.36); cx.restore();
+    drawNebulae(t);
+  }
+  const mgx=mouse.x*W, mgy=mouse.y*H;
+  const mg=cx.createRadialGradient(mgx,mgy,0,mgx,mgy,260);
+  mg.addColorStop(0,'rgba(200,169,110,0.04)'); mg.addColorStop(1,'transparent');
+  cx.fillStyle=mg; cx.fillRect(0,0,W,H);
+  if(starfieldMode===1) drawWarp(t); else drawNormal(t);
+  maybeShoot(t);
+  requestAnimationFrame(draw);
+}
+
+window.addEventListener('resize',()=>{resize();initStars();});
+document.addEventListener('mousemove',e=>{mouse.x=e.clientX/W;mouse.y=e.clientY/H;});
+resize(); initStars(); requestAnimationFrame(draw);
+
+/* ═══════════════════════════════════════════════
+   HELPERS
+═══════════════════════════════════════════════ */
+function getRect(el) { return el.getBoundingClientRect(); }
+function debounce(fn, ms) {
+  let t; return function(...a){clearTimeout(t);t=setTimeout(()=>fn(...a),ms);};
+}
+
+const lJ=document.getElementById('l-J');
+const lo1=document.getElementById('l-o1');
+const ll1=document.getElementById('l-l1');
+const ll2=document.getElementById('l-l2');
+const ly=document.getElementById('l-y');
+const lS=document.getElementById('l-S');
+const lp=document.getElementById('l-p');
+const la=document.getElementById('l-a');
+const lc=document.getElementById('l-c');
+const le=document.getElementById('l-e');
+const lC=document.getElementById('l-C');
+const lo2=document.getElementById('l-o2');
+const lw=document.getElementById('l-w');
+
+const allLetters=[lJ,lo1,ll1,ll2,ly,lS,lp,la,lc,le,lC,lo2,lw];
+
+/* ═══════════════════════════════════════════════
+   J — jump + Mr Finance walks in
+═══════════════════════════════════════════════ */
+let jBusy=false;
+lJ.addEventListener('click',()=>{
+  if(jBusy) return; jBusy=true;
+  lJ.style.animation='jumpBounce 0.9s cubic-bezier(.36,.07,.19,.97) forwards';
+  setTimeout(()=>{
+    const fin=document.createElement('div');
+    fin.className='mr-finance';
+    fin.textContent='🤵';
+    document.body.appendChild(fin);
+    fin.addEventListener('animationend',()=>{fin.remove();});
+    setTimeout(()=>{
+      lJ.style.animation='';
+      jBusy=false;
+    },3600);
+  },800);
+});
+
+/* ═══════════════════════════════════════════════
+   o1 & o2 — swap with hand-rolled perspective
+   Z arc + scaleX + fontSize = real 3D illusion
+═══════════════════════════════════════════════ */
+let oSwapping=false;
+function doOSwap(clicked){
+  if(oSwapping)return; oSwapping=true;
+
+  const r1=getRect(lo1), r2=getRect(lo2);
+  const cx1=r1.left+r1.width/2, cy1=r1.top+r1.height/2;
+  const cx2=r2.left+r2.width/2, cy2=r2.top+r2.height/2;
+  const baseSize=parseFloat(getComputedStyle(lo1).fontSize);
+
+  lo1.style.opacity='0'; lo2.style.opacity='0';
+
+  const dur=900, focal=600, zArc=350;
+
+  // clicked one goes BACK (zDir=-1), the other comes FORWARD (zDir=+1)
+  const configs = clicked===lo1
+    ? [ {sx:cx1,sy:cy1,dx:cx2,dy:cy2,zDir:-1}, {sx:cx2,sy:cy2,dx:cx1,dy:cy1,zDir:+1} ]
+    : [ {sx:cx2,sy:cy2,dx:cx1,dy:cy1,zDir:-1}, {sx:cx1,sy:cy1,dx:cx2,dy:cy2,zDir:+1} ];
+
+  const clones=configs.map(cfg=>{
+    const el=document.createElement('span');
+    el.className='phys-letter';
+    el.textContent='o';
+    el.style.cssText=`left:${cfg.sx}px;top:${cfg.sy}px;transform:translate(-50%,-55%);transform-origin:center center;`;
+    document.body.appendChild(el);
+    return {...cfg,el};
+  });
+
+  let startT=null;
+  function step(ts){
+    if(!startT)startT=ts;
+    const p=Math.min((ts-startT)/dur,1);
+    const ep=1-Math.pow(1-p,3);
+
+    clones.forEach(({el,sx,sy,dx,dy,zDir})=>{
+      const x=sx+(dx-sx)*ep;
+      const y=sy+(dy-sy)*ep;
+      const z=zDir*zArc*Math.sin(ep*Math.PI);
+      const pScale=focal/(focal-z);
+      const glow=18*pScale+(z>0?20*(z/zArc):0);
+      el.style.left=x+'px';
+      el.style.top=y+'px';
+      el.style.fontSize=(baseSize*pScale)+'px';
+      el.style.transform=`translate(-50%,-55%)`;
+      el.style.filter=`drop-shadow(0 0 ${glow}px rgba(120,210,255,0.7))`;
+      el.style.zIndex=z>0?610:600;
+    });
+
+    if(p<1){ requestAnimationFrame(step); }
+    else{
+      clones.forEach(c=>c.el.remove());
+      lo1.style.opacity='1'; lo2.style.opacity='1';
+      oSwapping=false;
+    }
+  }
+  requestAnimationFrame(step);
+}
+lo1.addEventListener('click',()=>doOSwap(lo1));
+lo2.addEventListener('click',()=>doOSwap(lo2));
+
+/* ═══════════════════════════════════════════════
+   ll — play button, freeze everything
+═══════════════════════════════════════════════ */
+let frozen=false;
+function doFreeze() {
+  frozen=!frozen;
+  if(frozen) {
+    ll1.dataset.play='1';
+    ll2.style.visibility='hidden';
+    document.body.classList.add('frozen');
+  } else {
+    delete ll1.dataset.play;
+    ll2.style.visibility='visible';
+    document.body.classList.remove('frozen');
+  }
+}
+ll1.addEventListener('click',doFreeze);
+ll2.addEventListener('click',doFreeze);
+
+/* ═══════════════════════════════════════════════
+   y — cycle hue on ALL letters
+═══════════════════════════════════════════════ */
+const causticHues=[220,280,160,30,0,190];
+let causticIdx=0;
+ly.addEventListener('click',()=>{
+  causticIdx=(causticIdx+1)%causticHues.length;
+  causticsHue=causticHues[causticIdx];
+  const rotate=causticsHue-220;
+  allLetters.forEach(el=>{
+    el.style.transition='filter 0.4s';
+    el.style.filter=`drop-shadow(0 0 28px hsla(${causticsHue},80%,65%,0.8)) hue-rotate(${rotate}deg)`;
+  });
+});
+
+/* ═══════════════════════════════════════════════
+   S — smoke + blast off
+═══════════════════════════════════════════════ */
+let sBusy=false;
+lS.addEventListener('click',()=>{
+  if(sBusy)return; sBusy=true;
+  const r=getRect(lS);
+  const cx3=r.left+r.width/2, cy3=r.top+r.height/2;
+  // smoke puffs
+  for(let i=0;i<8;i++){
+    setTimeout(()=>{
+      const puff=document.createElement('div');
+      puff.className='smoke-puff';
+      const sz=30+Math.random()*50;
+      puff.style.cssText=`width:${sz}px;height:${sz}px;left:${cx3+(Math.random()-0.5)*40}px;top:${cy3}px;`;
+      document.body.appendChild(puff);
+      puff.addEventListener('animationend',()=>puff.remove());
+    },i*80);
+  }
+  // blast off
+  setTimeout(()=>{
+    lS.style.animation='blastOff 1.2s ease-in forwards';
+    setTimeout(()=>{
+      lS.style.animation='';
+      lS.style.opacity='1';
+      sBusy=false;
+    },2500);
+  },500);
+});
+
+/* ═══════════════════════════════════════════════
+   p — explode all letters with physics
+═══════════════════════════════════════════════ */
+let physBusy=false;
+lp.addEventListener('click',()=>{
+  if(physBusy)return; physBusy=true;
+  document.body.classList.add('physics-mode');
+
+  const letters=allLetters.map(el=>{
+    const r=getRect(el);
+    // Use only the direct text node, not child spans (like .letter-hint)
+    const textNode=[...el.childNodes].find(n=>n.nodeType===3&&n.textContent.trim());
+    const ch=textNode?textNode.textContent.trim():el.id.replace('l-','');
+    return {
+      ch,
+      x:r.left+r.width/2, y:r.top+r.height/2,
+      vx:(Math.random()-0.5)*22,
+      vy:(Math.random()-0.8)*18,
+      rot:0, rotV:(Math.random()-0.5)*8,
+      el:null
+    };
+  });
+
+  letters.forEach(l=>{
+    const span=document.createElement('span');
+    span.className='phys-letter'; span.textContent=l.ch;
+    span.style.left=l.x+'px'; span.style.top=l.y+'px';
+    span.style.transform='translate(-50%,-55%)';
+    document.body.appendChild(span);
+    l.el=span;
+  });
+
+  const gravity=0.55, bounce=0.62, friction=0.98;
+  const floor=H-80, wallL=20, wallR=W-20;
+  let running=true, startT=null;
+
+  function physStep(ts){
+    if(!startT)startT=ts;
+    if(ts-startT>7000){running=false;}
+    if(!running){
+      letters.forEach(l=>l.el.remove());
+      document.body.classList.remove('physics-mode');
+      physBusy=false; return;
+    }
+    letters.forEach(l=>{
+      l.vy+=gravity; l.vx*=friction;
+      l.x+=l.vx; l.y+=l.vy; l.rot+=l.rotV;
+      if(l.y>floor){l.y=floor;l.vy*=-bounce;l.vx*=0.85;l.rotV*=0.7;}
+      if(l.x<wallL){l.x=wallL;l.vx*=-bounce;}
+      if(l.x>wallR){l.x=wallR;l.vx*=-bounce;}
+      l.el.style.left=l.x+'px'; l.el.style.top=l.y+'px';
+      l.el.style.transform=`translate(-50%,-55%) rotate(${l.rot}deg)`;
+    });
+    requestAnimationFrame(physStep);
+  }
+  requestAnimationFrame(physStep);
+});
+
+/* ═══════════════════════════════════════════════
+   a — spin + both o's orbit
+═══════════════════════════════════════════════ */
+let aOrbit=false, orbitRaf=null;
+let orbitO1=null, orbitO2=null;
+la.addEventListener('click',()=>{
+  if(aOrbit){
+    aOrbit=false;
+    la.style.animation='';
+    if(orbitO1)orbitO1.remove();
+    if(orbitO2)orbitO2.remove();
+    lo1.style.opacity='1'; lo2.style.opacity='1';
+    return;
+  }
+  aOrbit=true;
+  la.style.animation='letterSpin 1.5s linear infinite';
+  lo1.style.opacity='0'; lo2.style.opacity='0';
+
+  orbitO1=document.createElement('span');
+  orbitO2=document.createElement('span');
+  [orbitO1,orbitO2].forEach(o=>{
+    o.className='orbital-o'; o.textContent='o';
+    document.body.appendChild(o);
+  });
+
+  const ra=getRect(la);
+  const acx=ra.left+ra.width/2, acy=ra.top+ra.height/2;
+  const radius=90;
+  let angle=0, startT=null;
+  function orbitStep(ts){
+    if(!startT)startT=ts;
+    if(!aOrbit)return;
+    angle=(ts-startT)*0.003;
+    const x1=acx+Math.cos(angle)*radius, y1=acy+Math.sin(angle)*radius;
+    const x2=acx+Math.cos(angle+Math.PI)*radius, y2=acy+Math.sin(angle+Math.PI)*radius;
+    orbitO1.style.left=x1+'px'; orbitO1.style.top=y1+'px';
+    orbitO1.style.transform='translate(-50%,-55%)';
+    orbitO2.style.left=x2+'px'; orbitO2.style.top=y2+'px';
+    orbitO2.style.transform='translate(-50%,-55%)';
+    requestAnimationFrame(orbitStep);
+  }
+  requestAnimationFrame(orbitStep);
+});
+
+/* ═══════════════════════════════════════════════
+   c — cycle starfield modes
+═══════════════════════════════════════════════ */
+const modeNames=['normal','warp speed','dense nebula','minimal'];
+let modeIdx=0;
+lc.addEventListener('click',()=>{
+  modeIdx=(modeIdx+1)%4;
+  starfieldMode=modeIdx;
+  initStars();
+  // flash the letter to show mode change
+  lc.style.transition='filter 0.1s';
+  lc.style.filter='drop-shadow(0 0 40px rgba(120,210,255,1)) brightness(2)';
+  setTimeout(()=>{lc.style.filter='';},300);
+});
+
+/* ═══════════════════════════════════════════════
+   e — squishy morph o1 → e
+═══════════════════════════════════════════════ */
+let eMorphBusy=false;
+le.addEventListener('click',()=>{
+  if(eMorphBusy||oSwapping)return; eMorphBusy=true;
+  lo1.style.animation='squishMorph 0.45s cubic-bezier(.36,.07,.19,.97)';
+  setTimeout(()=>{
+    lo1.textContent='e';
+    lo1.style.animation='squishMorph 0.45s cubic-bezier(.36,.07,.19,.97) reverse';
+    setTimeout(()=>{
+      lo1.textContent='o';
+      lo1.style.animation='';
+      eMorphBusy=false;
+    },1000);
+  },225);
+});
+
+/* ═══════════════════════════════════════════════
+   C — egg pops out and drops
+═══════════════════════════════════════════════ */
+let cEggBusy=false;
+lC.addEventListener('click',()=>{
+  if(cEggBusy)return; cEggBusy=true;
+  const r=getRect(lC);
+  const egg=document.createElement('div');
+  egg.className='falling-egg';
+  egg.textContent='🥚';
+  const startX=r.left+r.width/2;
+  const startY=r.bottom;
+  const fallDist=H-startY-80;
+  egg.style.left=startX+'px'; egg.style.top=startY+'px';
+  egg.style.transform='translate(-50%,0)';
+  egg.style.setProperty('--egg-fall',fallDist+'px');
+  egg.style.animation='eggPop 1.4s cubic-bezier(.36,.07,.19,.97) forwards';
+  document.body.appendChild(egg);
+  egg.addEventListener('animationend',()=>{
+    setTimeout(()=>{egg.remove(); cEggBusy=false;},1200);
+  });
+});
+
+/* ═══════════════════════════════════════════════
+   w — anvil fall with gravity
+═══════════════════════════════════════════════ */
+let wFalling=false;
+lw.addEventListener('click',()=>{
+  if(wFalling)return; wFalling=true;
+  const r=getRect(lw);
+  const fallDist=H-r.bottom-70;
+  lw.style.setProperty('--fall-dist',fallDist+'px');
+  lw.style.animation='anvilFall 1s cubic-bezier(.55,.05,.68,.19) forwards';
+  // shake the page when it lands
+  setTimeout(()=>{
+    document.body.style.transition='transform 0.05s';
+    document.body.style.transform='translateY(-4px)';
+    setTimeout(()=>{document.body.style.transform='translateY(3px)';
+      setTimeout(()=>{document.body.style.transform='';},80);
+    },50);
+    setTimeout(()=>{
+      lw.style.animation=''; lw.style.removeProperty('--fall-dist');
+      wFalling=false;
+    },2500);
+  },950);
+});
+</script>
+</body>
+</html>
