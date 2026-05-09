@@ -1,7 +1,7 @@
 // Jolly Space Cow — Service Worker
 // Caches the site for offline use and serves a fun offline page when disconnected
 
-const CACHE_NAME = 'jsc-v18'; // Version 18: Senior-grade optimized moo system
+const CACHE_NAME = 'jsc-v24'; // Version 24: Added Salsa Dance animation to Mr Finance
 
 const PRECACHE_URLS = [
   './',

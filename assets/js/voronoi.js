@@ -452,25 +452,44 @@ function spawnMrFinanceNPC() {
 
     const fin = document.createElement('model-viewer');
     fin.setAttribute('src', 'assets/3d/FinanCharacter34BakermanGrooving.glb');
-    fin.setAttribute('autoplay', 'true');
-    fin.setAttribute('animation-name', 'Idle');
-    fin.setAttribute('orientation', '0deg 0deg 0deg');
-    fin.style.position = 'fixed';
-    fin.style.bottom = '0px';
-    fin.style.left = '0px';
-    fin.style.width = '150px';
-    fin.style.height = '150px';
-    fin.style.zIndex = '500';
-    fin.style.cursor = 'crosshair';
+    fin.setAttribute('autoplay', '');
+    fin.setAttribute('animation-name', 'Walking');
+    fin.setAttribute('orientation', '0deg 0deg 90deg');
+    // Kill expensive rendering features
+    fin.setAttribute('shadow-intensity', '0');
+    fin.setAttribute('environment-image', 'neutral');
+    fin.setAttribute('interaction-prompt', 'none');
+    fin.setAttribute('disable-zoom', '');
+    fin.setAttribute('disable-pan', '');
+    fin.setAttribute('disable-tap', '');
+
+    fin.style.cssText = `
+        position: fixed; bottom: 0; left: 0;
+        width: 150px; height: 150px;
+        z-index: 500; cursor: crosshair;
+        transform: translate3d(-150px, 0px, 0px);
+        visibility: hidden;
+        will-change: transform;
+        contain: layout style paint;
+    `;
     document.body.appendChild(fin);
 
-    let state = 'idle';
-    let x = 50;
+    let state = 'walk';
+    let x = -150;
     let y = 0;
     let facingRight = true;
     let stateTimer = null;
-    let walkSpeed = 120;
-    let lastTime = performance.now();
+    let loopId = 0;
+    let loopRunning = false;
+    const walkSpeed = 120;
+    let fallVelocity = 0;
+    const gravity = 1200;
+    let lastTime = 0;
+    let revealed = false;
+    let cachedWidth = window.innerWidth;
+
+    // Cache viewport width on resize instead of reading every frame
+    window.addEventListener('resize', () => { cachedWidth = window.innerWidth; }, { passive: true });
 
     function setState(newState, animName, orientation) {
         state = newState;
@@ -481,89 +500,167 @@ function spawnMrFinanceNPC() {
         if (stateTimer) clearTimeout(stateTimer);
     }
 
+    // States that require per-frame position updates
+    const movingStates = new Set(['walk', 'falling_through', 'falling_from_ceiling']);
+
+    function needsLoop() {
+        return movingStates.has(state);
+    }
+
+    function startLoop() {
+        if (!loopRunning) {
+            loopRunning = true;
+            lastTime = performance.now();
+            loopId = requestAnimationFrame(loop);
+        }
+    }
+
+    function stopLoop() {
+        if (loopRunning) {
+            loopRunning = false;
+            cancelAnimationFrame(loopId);
+        }
+    }
+
+    function applyTransform() {
+        fin.style.transform = `translate3d(${x | 0}px, ${y | 0}px, 0px)`;
+        if (!revealed) { revealed = true; fin.style.visibility = 'visible'; }
+    }
+
     function loop(time) {
-        if (!fin.isConnected) return;
-        let dt = (time - lastTime) / 1000;
+        if (!fin.isConnected) { loopRunning = false; return; }
+        let dt = (time - lastTime) * 0.001;
         lastTime = time;
         if (dt > 0.1) dt = 0.1;
 
         if (state === 'walk') {
             if (facingRight) {
                 x += walkSpeed * dt;
-                if (x > window.innerWidth + 100) {
-                    x = -150;
-                }
+                if (x > cachedWidth + 100) x = -150;
             } else {
                 x -= walkSpeed * dt;
-                if (x < -150) {
-                    x = window.innerWidth + 100;
-                }
+                if (x < -150) x = cachedWidth + 100;
             }
         } else if (state === 'falling_through') {
-            y += 300 * dt;
+            fallVelocity += gravity * dt;
+            y += fallVelocity * dt;
             if (y > 250) {
                 y = -window.innerHeight + 150;
+                fallVelocity = 0;
                 setState('hanging', 'Hanging Idle', '0deg 0deg 0deg');
+                applyTransform();
+                stopLoop();
                 stateTimer = setTimeout(() => {
                     setState('falling_from_ceiling', 'Falling', '0deg 0deg 0deg');
+                    fallVelocity = 0;
+                    startLoop();
                 }, 4000);
+                return;
             }
         } else if (state === 'falling_from_ceiling') {
-            y += 500 * dt;
+            fallVelocity += gravity * dt;
+            y += fallVelocity * dt;
             if (y >= 0) {
                 y = 0;
+                fallVelocity = 0;
                 setState('impact', 'Falling Flat Impact', '0deg 0deg 0deg');
+                applyTransform();
+                stopLoop();
+                // Transition after one play — short timeout to prevent looping
                 stateTimer = setTimeout(() => {
-                    setState('idle', 'Idle', '0deg 0deg 0deg');
-                    think();
-                }, 2000);
+                    if (state === 'impact') {
+                        setState('idle', 'Idle', '0deg 0deg 0deg');
+                        think();
+                    }
+                }, 1500);
+                return;
             }
+        } else {
+            // Non-moving state reached — park the loop
+            applyTransform();
+            stopLoop();
+            return;
         }
-        
-        fin.style.transform = `translateX(${x}px) translateY(${y}px)`;
-        requestAnimationFrame(loop);
+
+        applyTransform();
+        loopId = requestAnimationFrame(loop);
     }
-    requestAnimationFrame(loop);
+
+    // Kick off the initial walk-in
+    startLoop();
 
     function think() {
         if (state === 'idle' || state === 'walk') {
-            const rand = Math.random();
-            if (rand < 0.2) {
-                setState('idle', Math.random() > 0.5 ? 'Idle' : 'Dancing Twerk', '0deg 0deg 0deg');
-                stateTimer = setTimeout(think, 3000 + Math.random() * 4000);
-            } else if (rand < 0.7) {
-                facingRight = Math.random() > 0.5;
-                setState('walk', 'Walking', facingRight ? '0deg 0deg 90deg' : '0deg 0deg -90deg');
-                stateTimer = setTimeout(think, 4000 + Math.random() * 5000);
-            } else if (rand < 0.85) {
-                setState('falling_through', 'Falling', '0deg 0deg 0deg');
+            const edgeMargin = 120;
+            const nearEdge = x < edgeMargin || x > cachedWidth - edgeMargin;
+
+            if (nearEdge) {
+                // Near edge — keep walking in current direction, suppress emotes
+                if (state !== 'walk') {
+                    setState('walk', 'Walking', facingRight ? '0deg 0deg 90deg' : '0deg 0deg -90deg');
+                    startLoop();
+                }
+                stateTimer = setTimeout(think, 2000 + Math.random() * 2000);
             } else {
-                setState('idle', 'Sad Idle', '0deg 0deg 0deg');
-                stateTimer = setTimeout(think, 3000);
+                const rand = Math.random();
+                if (rand < 0.2) {
+                    const idleAnims = ['Idle', 'Dancing Twerk', 'Salsa Dance'];
+                    const anim = idleAnims[Math.floor(Math.random() * idleAnims.length)];
+                    setState('idle', anim, '0deg 0deg 0deg');
+                    stopLoop();
+                    stateTimer = setTimeout(think, 3000 + Math.random() * 4000);
+                } else if (rand < 0.7) {
+                    facingRight = Math.random() > 0.5;
+                    setState('walk', 'Walking', facingRight ? '0deg 0deg 90deg' : '0deg 0deg -90deg');
+                    startLoop();
+                    stateTimer = setTimeout(think, 4000 + Math.random() * 5000);
+                } else if (rand < 0.85) {
+                    setState('falling_through', 'Falling', '0deg 0deg 0deg');
+                    startLoop();
+                } else {
+                    setState('idle', 'Sad Idle', '0deg 0deg 0deg');
+                    stopLoop();
+                    stateTimer = setTimeout(think, 3000);
+                }
             }
         }
     }
-    
-    stateTimer = setTimeout(think, 2000);
+
+    stateTimer = setTimeout(think, 4000 + Math.random() * 3000);
 
     fin.addEventListener('pointerdown', (e) => {
-        if (state === 'falling_through' || state === 'falling_from_ceiling' || state === 'hanging' || state === 'impact') return;
-        
+        if (state === 'falling_through' || state === 'falling_from_ceiling' || state === 'hanging' || state === 'impact' || state === 'sweep') return;
+
         const rect = fin.getBoundingClientRect();
         const clickY = e.clientY - rect.top;
-        
+
         if (clickY < 50) {
             setState('punched', 'Receiving An Uppercut', '0deg 0deg 0deg');
+            stopLoop();
+            stateTimer = setTimeout(() => {
+                setState('idle', 'Idle', '0deg 0deg 0deg');
+                think();
+            }, 1500);
         } else if (clickY < 100) {
             setState('punched', 'Kidney Hit', '0deg 0deg 0deg');
+            stopLoop();
+            stateTimer = setTimeout(() => {
+                setState('idle', 'Idle', '0deg 0deg 0deg');
+                think();
+            }, 1500);
         } else {
-            setState('punched', 'Sweep Fall', '0deg 0deg 0deg');
+            // Leg sweep → fall through floor → hang from ceiling
+            setState('sweep', 'Sweep Fall', '0deg 0deg 0deg');
+            stopLoop();
+
+            // After sweep plays once, start sinking (animation keeps playing while he drops off-screen fast)
+            stateTimer = setTimeout(() => {
+                if (state === 'sweep') {
+                    fallVelocity = 0;
+                    state = 'falling_through';
+                    startLoop();
+                }
+            }, 1500);
         }
-        
-        stateTimer = setTimeout(() => {
-            setState('idle', 'Idle', '0deg 0deg 0deg');
-            think();
-        }, 1500);
     });
 }
-
