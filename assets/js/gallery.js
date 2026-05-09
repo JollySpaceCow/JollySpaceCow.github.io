@@ -6,7 +6,8 @@
 (function() {
   const WALLPAPERS = [
     { id: 'Kawoosh', format: 'JPEG XL' },
-    { id: 'Table',   format: 'JPEG XL' }
+    { id: 'Table',   format: 'JPEG XL' },
+    { id: 'Tank',    format: 'JPEG XL' }
   ];
 
   const Gallery = {

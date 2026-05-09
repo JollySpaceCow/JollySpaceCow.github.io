@@ -1,77 +1,92 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Jolly Space Cow</title>
-  
+
   <!-- Favicons -->
   <link rel="apple-touch-icon" sizes="180x180" href="public/apple-touch-icon.png">
   <link rel="icon" type="image/png" sizes="32x32" href="public/favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="public/favicon-16x16.png">
   <link rel="icon" href="public/favicon.ico">
-  
+
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;900&family=Inter:wght@400;500&display=swap" rel="stylesheet">
-  
+  <link
+    href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;900&family=Inter:wght@400;500&display=swap"
+    rel="stylesheet">
+
   <!-- Styles -->
   <link rel="stylesheet" href="assets/css/style.css">
   <link rel="stylesheet" href="assets/css/hero.css">
-  
+
   <style>
     /* Immediate critical overrides */
-    * { user-select: none; -webkit-user-select: none; }
+    * {
+      user-select: none;
+      -webkit-user-select: none;
+    }
   </style>
 </head>
+
 <body class="is-home">
 
-<canvas id="space-canvas"></canvas>
+  <canvas id="space-canvas"></canvas>
 
-<!-- Dev Tools -->
-<div id="dev-menu" style="display:none; position:fixed; top:20px; right:20px; background:rgba(0,0,0,0.85); border:1px solid #c8a96e; padding:1.5rem; z-index:99999; border-radius:12px; font-family:'Inter', sans-serif; backdrop-filter:blur(8px); box-shadow: 0 10px 40px rgba(0,0,0,0.5);">
-  <h3 style="color:#c8a96e; margin-top:0; margin-bottom:1rem; font-family:'Outfit', sans-serif; font-size: 1rem;">Dev Menu</h3>
-  <label style="color:#fff; font-size:14px; display:flex; align-items:center; gap:0.6rem; cursor:pointer;">
-    <input type="checkbox" id="warp-toggle" style="cursor:pointer; width: 18px; height: 18px; accent-color: #c8a96e;">
-    Warp Mode (E to toggle)
-  </label>
-</div>
-
-<nav class="hero-nav">
-  <a href="index.html" class="nav-logo">Jolly<span>Space</span>Cow</a>
-  <div class="nav-links">
-    <a href="index.html" class="active">Home</a>
-    <a href="videos.html">Videos</a>
-    <a href="gallery.html">Gallery</a>
-    <a href="games.html">Games</a>
-    <a href="about.html">About</a>
+  <!-- Dev Tools -->
+  <div id="dev-menu"
+    style="display:none; position:fixed; top:20px; right:20px; background:rgba(0,0,0,0.85); border:1px solid #c8a96e; padding:1.5rem; z-index:99999; border-radius:12px; font-family:'Inter', sans-serif; backdrop-filter:blur(8px); box-shadow: 0 10px 40px rgba(0,0,0,0.5);">
+    <h3 style="color:#c8a96e; margin-top:0; margin-bottom:1rem; font-family:'Outfit', sans-serif; font-size: 1rem;">Dev
+      Menu</h3>
+    <label style="color:#fff; font-size:14px; display:flex; align-items:center; gap:0.6rem; cursor:pointer;">
+      <input type="checkbox" id="warp-toggle" style="cursor:pointer; width: 18px; height: 18px; accent-color: #c8a96e;">
+      Warp Mode (E to toggle)
+    </label>
   </div>
-</nav>
 
-<main class="hero">
-  <p class="hero-kicker">🐄 moo</p>
-  <div class="hero-title-wrapper">
-    <!-- Hidden SEO title to dictate the correct wrapper dimensions -->
-    <h1 class="hero-title" id="seo-title" style="visibility: hidden;">
-      Jolly Space Cow
-    </h1>
-    <!-- Canvas perfectly clipped to text, absolutely positioned to fill the wrapper -->
-    <canvas id="voronoi-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;"></canvas>
-  </div>
-  <p class="hero-sub">Welcome to the stellar experience!</p>
-  <div class="hero-links">
-    <a href="https://www.youtube.com/channel/UCpBcikf2fOhwMhp3Czj2CwA" class="pill pill-yt" target="_blank">▶ YouTube</a>
-    <a href="https://www.youtube.com/channel/UCpBcikf2fOhwMhp3Czj2CwA?sub_confirmation=1" class="pill pill-ghost" target="_blank">🔔 Subscribe</a>
-    <a href="https://jollyspacecow.itch.io" class="pill pill-ghost" target="_blank">🎮 itch.io</a>
-  </div>
-</main>
+  <nav class="hero-nav">
+    <a href="index.html" class="nav-logo">Jolly<span>Space</span>Cow</a>
+    <div class="nav-links">
+      <a href="index.html" class="active">Home</a>
+      <a href="videos.html">Videos</a>
+      <a href="gallery.html">Gallery</a>
+      <a href="games.html">Games</a>
+      <a href="about.html">About</a>
+    </div>
+  </nav>
 
-<!-- Core Scripts -->
-<script src="assets/js/space.js"></script>
-<script src="assets/js/voronoi.js"></script>
-<script src="assets/js/cursor.js"></script>
-<script src="assets/js/app.js"></script>
+  <main class="hero">
+    <p class="hero-kicker">🐄 moo</p>
+    <div class="hero-title-wrapper">
+      <!-- Hidden SEO title to dictate the correct wrapper dimensions -->
+      <h1 class="hero-title" id="seo-title" style="visibility: hidden;">
+        Jolly Space Cow
+      </h1>
+      <!-- Canvas perfectly clipped to text, absolutely positioned to fill the wrapper -->
+      <canvas id="voronoi-canvas"
+        style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;"></canvas>
+    </div>
+    <p class="hero-sub">Welcome to the stellar experience!</p>
+    <div class="hero-links">
+      <a href="https://www.youtube.com/channel/UCpBcikf2fOhwMhp3Czj2CwA" class="pill pill-yt" target="_blank">▶
+        YouTube</a>
+      <a href="https://www.youtube.com/channel/UCpBcikf2fOhwMhp3Czj2CwA?sub_confirmation=1" class="pill pill-ghost"
+        target="_blank">🔔 Subscribe</a>
+      <a href="https://jollyspacecow.itch.io" class="pill pill-ghost" target="_blank">🎮 itch.io</a>
+    </div>
+  </main>
+
+  <!-- Core Scripts -->
+  <script src="assets/js/space.js"></script>
+  <script src="assets/js/physics.js"></script>
+  <script src="assets/js/npc.js"></script>
+  <script src="assets/js/title-engine.js"></script>
+  <script src="assets/js/cursor.js"></script>
+  <script src="assets/js/app.js"></script>
 
 </body>
+
 </html>

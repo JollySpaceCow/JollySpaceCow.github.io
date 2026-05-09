@@ -3,192 +3,165 @@
 (function() {
   const cv = document.getElementById('space-canvas');
   if (!cv) return;
-  const cx = cv.getContext('2d');
+  const cx = cv.getContext('2d', { alpha: false }); // Optimization
   let W, H, stars = [], mouse = { x: 0.5, y: 0.5 }, smoothMouse = { x: 0.5, y: 0.5 };
 
   function resize() {
     W = cv.width = window.innerWidth;
     H = cv.height = window.innerHeight;
+    initStars(300); // Reduced star count slightly for better perf
   }
 
-  function mkStar(forcePos) {
+  function mkStar() {
     return {
-      x: forcePos ? Math.random() * W : Math.random() * W,
+      x: Math.random() * W,
       y: Math.random() * H,
-      r: Math.random() * 1.6 + 0.15,
+      r: Math.random() * 1.5 + 0.1,
       speed: Math.random() * 0.018 + 0.003,
       opacity: Math.random() * 0.75 + 0.1,
       twinkle: Math.random() * Math.PI * 2,
-      ts: Math.random() * 0.025 + 0.005,
-      drift: (Math.random() - 0.5) * 0.025,
+      ts: Math.random() * 0.02 + 0.005,
       hue: Math.random() < 0.08 ? (Math.random() < 0.5 ? 210 : 45) : 0,
       sat: Math.random() < 0.08 ? 80 : 0,
     };
   }
 
-  function initStars(n = 380) {
-    stars = Array.from({ length: n }, () => mkStar(true));
+  function initStars(n) {
+    stars = Array.from({ length: n }, () => mkStar());
   }
 
   function drawMilkyWay() {
-    const cx2 = W * 0.5, cy2 = H * 0.48;
-    const gr = cx.createLinearGradient(0, cy2 - H * 0.18, 0, cy2 + H * 0.18);
+    const cy2 = H * 0.48;
+    const gr = cx.createLinearGradient(0, cy2 - H * 0.15, 0, cy2 + H * 0.15);
     gr.addColorStop(0, 'transparent');
-    gr.addColorStop(0.5, 'rgba(160,180,255,0.028)');
+    gr.addColorStop(0.5, 'rgba(160,180,255,0.015)'); // Subtle
     gr.addColorStop(1, 'transparent');
     cx.save();
-    cx.translate(cx2, cy2);
+    cx.translate(W * 0.5, cy2);
     cx.rotate(-0.18);
     cx.fillStyle = gr;
-    cx.fillRect(-W * 0.8, -H * 0.18, W * 1.6, H * 0.36);
+    cx.fillRect(-W * 0.8, -H * 0.15, W * 1.6, H * 0.3);
     cx.restore();
   }
 
   const nebulae = [
-    { x: 0.15, y: 0.25, r: 0.22, h: 220, o: 0.04 },
-    { x: 0.82, y: 0.55, r: 0.2, h: 260, o: 0.032 },
-    { x: 0.48, y: 0.78, r: 0.18, h: 195, o: 0.03 },
-    { x: 0.68, y: 0.18, r: 0.15, h: 30, o: 0.025 },
+    { x: 0.15, y: 0.25, r: 0.22, h: 220, o: 0.03 },
+    { x: 0.82, y: 0.55, r: 0.2, h: 260, o: 0.025 },
+    { x: 0.48, y: 0.78, r: 0.18, h: 195, o: 0.02 },
+    { x: 0.68, y: 0.18, r: 0.15, h: 30, o: 0.02 },
   ];
 
   function drawNebulae(t) {
-    nebulae.forEach(b => {
-      const px = (b.x + Math.sin(t * 0.00025 + b.h) * 0.015) * W;
-      const py = (b.y + Math.cos(t * 0.0003 + b.h) * 0.015) * H;
-      const gr = cx.createRadialGradient(px, py, 0, px, py, b.r * Math.max(W, H));
-      gr.addColorStop(0, `hsla(${b.h},65%,62%,${b.o})`);
-      gr.addColorStop(0.5, `hsla(${b.h},55%,50%,${b.o * 0.3})`);
+    const maxDim = Math.max(W, H);
+    for (let i = 0; i < nebulae.length; i++) {
+      const b = nebulae[i];
+      const px = (b.x + Math.sin(t * 0.0002 + b.h) * 0.01) * W;
+      const py = (b.y + Math.cos(t * 0.00025 + b.h) * 0.01) * H;
+      const radius = b.r * maxDim;
+      
+      const gr = cx.createRadialGradient(px, py, 0, px, py, radius);
+      gr.addColorStop(0, `hsla(${b.h},60%,60%,${b.o})`);
       gr.addColorStop(1, 'transparent');
       cx.fillStyle = gr;
-      cx.beginPath(); cx.arc(px, py, b.r * Math.max(W, H), 0, Math.PI * 2); cx.fill();
-    });
+      cx.fillRect(px - radius, py - radius, radius * 2, radius * 2);
+    }
   }
 
   function drawMouseGlow() {
     const px = smoothMouse.x * W, py = smoothMouse.y * H;
-    const gr = cx.createRadialGradient(px, py, 0, px, py, 280);
-    gr.addColorStop(0, 'rgba(200,169,110,0.045)');
+    const gr = cx.createRadialGradient(px, py, 0, px, py, 250);
+    gr.addColorStop(0, 'rgba(200,169,110,0.03)');
     gr.addColorStop(1, 'transparent');
-    cx.fillStyle = gr; cx.fillRect(0, 0, W, H);
+    cx.fillStyle = gr; cx.fillRect(px - 250, py - 250, 500, 500);
   }
 
   let shoot = null, shootStart = 0;
   function maybeShoot(t) {
-    if (!shoot && Math.random() < 0.0008) {
-      shoot = {
-        x: Math.random() * W * 0.75,
-        y: Math.random() * H * 0.45,
-        len: Math.random() * 140 + 70,
-        angle: Math.PI / 5 + (Math.random() - 0.5) * 0.25,
-      };
+    if (!shoot && Math.random() < 0.0005) {
+      shoot = { x: Math.random() * W * 0.8, y: Math.random() * H * 0.4, len: Math.random() * 120 + 60, angle: Math.PI / 5 + (Math.random() - 0.5) * 0.2 };
       shootStart = t;
     }
     if (shoot) {
-      const p = (t - shootStart) / 900;
+      const p = (t - shootStart) / 800;
       if (p > 1) { shoot = null; return; }
       const tail = Math.min(p * 2, 1);
-      const fade = p > 0.55 ? 1 - (p - 0.55) / 0.45 : 1;
       const ex = shoot.x + Math.cos(shoot.angle) * shoot.len * tail;
       const ey = shoot.y + Math.sin(shoot.angle) * shoot.len * tail;
-      const sx = ex - Math.cos(shoot.angle) * shoot.len * Math.min(tail, 0.38);
-      const sy = ey - Math.sin(shoot.angle) * shoot.len * Math.min(tail, 0.38);
-      const gr = cx.createLinearGradient(sx, sy, ex, ey);
-      gr.addColorStop(0, 'transparent');
-      gr.addColorStop(1, `rgba(255,255,248,${0.95 * fade})`);
-      cx.strokeStyle = gr; cx.lineWidth = 1.4;
+      const sx = ex - Math.cos(shoot.angle) * shoot.len * Math.min(tail, 0.3);
+      const sy = ey - Math.sin(shoot.angle) * shoot.len * Math.min(tail, 0.3);
+      cx.strokeStyle = `rgba(255,255,240,${0.8 * (p > 0.5 ? 1 - (p-0.5)/0.5 : 1)})`;
+      cx.lineWidth = 1.2;
       cx.beginPath(); cx.moveTo(sx, sy); cx.lineTo(ex, ey); cx.stroke();
     }
   }
 
   function draw(t) {
-    cx.clearRect(0, 0, W, H);
-    cx.fillStyle = 'rgba(4,4,14,0.18)';
+    cx.fillStyle = 'rgb(4,4,12)'; 
+    cx.fillRect(0, 0, W, H);
+    cx.fillStyle = 'rgba(10,10,25,0.15)'; 
     cx.fillRect(0, 0, W, H);
 
-    smoothMouse.x += (mouse.x - smoothMouse.x) * 0.04;
-    smoothMouse.y += (mouse.y - smoothMouse.y) * 0.04;
+    smoothMouse.x += (mouse.x - smoothMouse.x) * 0.05;
+    smoothMouse.y += (mouse.y - smoothMouse.y) * 0.05;
 
     drawMilkyWay();
     drawNebulae(t);
     drawMouseGlow();
 
-    stars.forEach(s => {
+    const isWarp = window.warpMode;
+    const centerX = W / 2, centerY = H / 2;
+
+    for (let i = 0; i < stars.length; i++) {
+      const s = stars[i];
       s.twinkle += s.ts;
-      const op = s.opacity * (0.65 + 0.35 * Math.sin(s.twinkle));
-      const px = s.x + (smoothMouse.x - 0.5) * s.r * 15;
-      const py = s.y + (smoothMouse.y - 0.5) * s.r * 15;
+      const op = s.opacity * (0.7 + 0.3 * Math.sin(s.twinkle));
+      const px = s.x + (smoothMouse.x - 0.5) * s.r * 12;
+      const py = s.y + (smoothMouse.y - 0.5) * s.r * 12;
 
-      if (s.r > 1.2 && op > 0.5) {
-        const gr = cx.createRadialGradient(px, py, 0, px, py, s.r * 5);
-        const col = s.sat > 0 ? `hsla(${s.hue},${s.sat}%, 85%, ` : 'rgba(255,255,248, ';
-        gr.addColorStop(0, col + (op * 0.4) + ')');
-        gr.addColorStop(1, 'transparent');
-        cx.fillStyle = gr;
-        cx.beginPath(); cx.arc(px, py, s.r * 5, 0, Math.PI * 2); cx.fill();
-      }
+      const col = s.sat > 0 ? `hsla(${s.hue},${s.sat}%, 90%, ${op})` : `rgba(240,240,255, ${op})`;
 
-      const col = s.sat > 0 ? `hsla(${s.hue},${s.sat}%, 90%, ${op})` : `rgba(245,245,255, ${op})`;
-
-      if (window.warpMode) {
-        let dx = s.x - W / 2;
-        let dy = s.y - H / 2;
-        let f = s.r * 0.0004 + 0.0001;
-        let vx = dx * f;
-        let vy = dy * f;
-        s.x += vx;
-        s.y += vy;
-
-        let distFromCenter = Math.hypot(dx, dy);
-        let warpOp = op * Math.min(1, Math.max(0, (distFromCenter - 15) / 60));
-        const warpCol = s.sat > 0 ? `hsla(${s.hue},${s.sat}%, 90%, ${warpOp})` : `rgba(245,245,255, ${warpOp})`;
+      if (isWarp) {
+        let dx = s.x - centerX, dy = s.y - centerY;
+        let f = s.r * 0.0005 + 0.0001;
+        let vx = dx * f, vy = dy * f;
+        s.x += vx; s.y += vy;
 
         if (s.x < -50 || s.x > W + 50 || s.y < -50 || s.y > H + 50) {
           let angle = Math.random() * Math.PI * 2;
-          let dist = Math.random() * Math.min(W, H) * 0.05 + 1;
-          s.x = W / 2 + Math.cos(angle) * dist;
-          s.y = H / 2 + Math.sin(angle) * dist;
+          s.x = centerX + Math.cos(angle) * 20;
+          s.y = centerY + Math.sin(angle) * 20;
         }
 
-        if (Math.abs(vx) > 0.5 || Math.abs(vy) > 0.5) {
-          cx.strokeStyle = warpCol;
-          cx.lineWidth = Math.max(0.5, s.r * 0.8);
-          cx.beginPath();
-          cx.moveTo(px, py);
-          cx.lineTo(px - vx * 1.5, py - vy * 1.5);
-          cx.stroke();
-        } else {
-          cx.fillStyle = warpCol;
-          cx.beginPath(); cx.arc(px, py, s.r, 0, Math.PI * 2); cx.fill();
-        }
+        cx.strokeStyle = col;
+        cx.lineWidth = s.r;
+        cx.beginPath(); cx.moveTo(px, py); cx.lineTo(px - vx * 2, py - vy * 2); cx.stroke();
       } else {
         cx.fillStyle = col;
-        cx.beginPath(); cx.arc(px, py, s.r, 0, Math.PI * 2); cx.fill();
-        s.x -= (Math.pow(s.r, 1.5) * 0.3 + 0.05);
-        if (s.x < -20) {
-          s.x = W + 20;
-          s.y = Math.random() * H;
+        if (s.r > 1.1) {
+          cx.beginPath(); cx.arc(px, py, s.r, 0, Math.PI * 2); cx.fill();
+        } else {
+          cx.fillRect(px - s.r, py - s.r, s.r * 2, s.r * 2);
         }
+        
+        s.x -= (s.r * 0.2 + 0.05);
+        if (s.x < -20) { s.x = W + 20; s.y = Math.random() * H; }
       }
-    });
+    }
 
     maybeShoot(t);
     requestAnimationFrame(draw);
   }
 
-  window.addEventListener('resize', () => { resize(); initStars(); });
-  document.addEventListener('mousemove', e => { mouse.x = e.clientX / W; mouse.y = e.clientY / H; });
+  window.addEventListener('resize', resize);
+  document.addEventListener('mousemove', e => { mouse.x = e.clientX / window.innerWidth; mouse.y = e.clientY / window.innerHeight; });
   
   resize(); 
-  initStars(); 
   requestAnimationFrame(draw);
 
-  // Dev Menu Logic
+  // Dev Menu
   window.warpMode = false;
-  let devKeys = '';
   window.addEventListener('keydown', (e) => {
-    devKeys += e.key;
-    if (devKeys.length > 2) devKeys = devKeys.slice(-2);
-    if (devKeys === '69') {
+    if (e.key === 'e' || e.key === 'E') {
       const dm = document.getElementById('dev-menu');
       if (dm) dm.style.display = dm.style.display === 'none' ? 'block' : 'none';
     }
