@@ -95,7 +95,17 @@
     }
   }
 
+  let lastTime = 0, accumulatedTime = 0;
   function draw(t) {
+    if (!lastTime) lastTime = t;
+    if (window.spacePaused) {
+      lastTime = t;
+      requestAnimationFrame(draw);
+      return;
+    }
+    accumulatedTime += (t - lastTime);
+    lastTime = t;
+
     cx.fillStyle = 'rgb(4,4,12)'; 
     cx.fillRect(0, 0, W, H);
     cx.fillStyle = 'rgba(10,10,25,0.15)'; 
@@ -105,7 +115,7 @@
     smoothMouse.y += (mouse.y - smoothMouse.y) * 0.05;
 
     drawMilkyWay();
-    drawNebulae(t);
+    drawNebulae(accumulatedTime);
     drawMouseGlow();
 
     const isWarp = window.warpMode;
@@ -148,7 +158,7 @@
       }
     }
 
-    maybeShoot(t);
+    maybeShoot(accumulatedTime);
     requestAnimationFrame(draw);
   }
 
@@ -156,6 +166,7 @@
   document.addEventListener('mousemove', e => { mouse.x = e.clientX / window.innerWidth; mouse.y = e.clientY / window.innerHeight; });
   
   resize(); 
+  window.spacePaused = false;
   requestAnimationFrame(draw);
 
   // Dev Menu
