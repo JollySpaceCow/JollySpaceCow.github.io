@@ -12,6 +12,8 @@ const TitleEngine = {
   interactiveLetters: [], // Array of { char, index, relX, width, anim: { mode, start, ... } }
   cachedHulls: {}, 
   isSpacePaused: false,
+  playTransition: 0, // 0 = playing (ll), 1 = paused (triangle)
+  oSwapping: false,
   colorMode: 0, 
   yClickCount: 0,
   currentHue: 0,
@@ -37,7 +39,8 @@ const TitleEngine = {
       swing: 2.0,
       flipShrink: 0.3,
       flipPause: 0.1,
-      flipGrow: 0.3
+      flipGrow: 0.3,
+      swap: 0.9
     }
   },
 
@@ -262,6 +265,15 @@ const TitleEngine = {
     if (!this.isSpacePaused) this.accumulatedTime += (time - this.lastTime);
     this.lastTime = time;
 
+    // Update play transition progress
+    const target = this.isSpacePaused ? 1 : 0;
+    const diff = target - this.playTransition;
+    if (Math.abs(diff) > 0.001) {
+      this.playTransition += diff * 0.16; // Smooth transition
+    } else {
+      this.playTransition = target;
+    }
+
     const { gl, timeLoc, resLoc, hueLoc } = webgl;
     gl.uniform1f(timeLoc, this.accumulatedTime * 0.001);
     gl.uniform2f(resLoc, webgl.canvas.width, rect.height * dpr * 0.5); 
@@ -284,46 +296,167 @@ const TitleEngine = {
     const dt = Math.min((time - this.lastPhysTime) / 1000, 0.1); 
     this.lastPhysTime = time;
 
-    this.interactiveLetters.forEach(letter => {
-      // Handle 'll' play button
-      if (this.isSpacePaused && letter.char === 'l' && letter.index === 3) return;
-      if (this.isSpacePaused && letter.char === 'l' && letter.index === 2) {
-        this.renderPlayButton(letter, startX, y, fontSize);
-        return;
-      }
+    const states = this.interactiveLetters.map((letter, i) => {
+      if (letter.char === 'l' && (i === 2 || i === 3)) return null;
+      return { letter, state: this.updateLetterState(letter, dt, y, startX, floor) };
+    });
 
+    // 2. Background Pass (z <= 0)
+    states.forEach(item => {
+      if (!item || item.state.z > 0) return;
       ctx.save();
-      const state = this.updateLetterState(letter, dt, y, startX, floor);
-      ctx.translate(state.x, state.y);
-      ctx.rotate(state.rot);
-      ctx.scale(state.scaleX, state.scaleY);
-      ctx.fillText(letter.char, -letter.width / 2, 0);
+      ctx.translate(item.state.x, item.state.y);
+      ctx.rotate(item.state.rot);
+      ctx.scale(item.state.scaleX, item.state.scaleY);
+      ctx.fillText(item.letter.char, -item.letter.width / 2, 0);
       ctx.restore();
     });
+
+    if (this.interactiveLetters[2].char === 'l') {
+      this.renderPlayPauseTransition(this.interactiveLetters[2], this.interactiveLetters[3], startX, y, fontSize, dt, floor);
+    }
     
-    // 3. Composite
+    // Composite background letters
     ctx.globalCompositeOperation = 'source-in';
     ctx.drawImage(webgl.canvas, 0, 0, this.canvas.width, this.canvas.height);
+
+    // --- NEW: Masked Shadow Pass ---
+    // This ensures the shadow ONLY affects the background letters
+    ctx.globalCompositeOperation = 'source-atop';
+    states.forEach(item => {
+      if (!item || item.state.z <= 0 || item.state.shadow <= 0) return;
+      
+      const offX = 10000, offY = 10000;
+      const shadowAmt = item.state.shadow;
+      
+      // Multi-pass for extreme darkening of the caustics
+      for (let j = 0; j < 4; j++) {
+        ctx.save();
+        ctx.shadowColor = `rgba(0, 0, 0, ${shadowAmt * 0.9})`;
+        ctx.shadowBlur = (20 + j * 15) * shadowAmt * dpr;
+        ctx.shadowOffsetX = (item.state.x - offX) + (10 * shadowAmt * dpr);
+        ctx.shadowOffsetY = (item.state.y - offY) + (50 * shadowAmt * dpr);
+        
+        ctx.translate(offX, offY);
+        ctx.rotate(item.state.rot);
+        ctx.scale(item.state.scaleX, item.state.scaleY);
+        ctx.fillText(item.letter.char, -item.letter.width / 2, 0);
+        ctx.restore();
+      }
+    });
+
     ctx.globalCompositeOperation = 'source-over';
+
+    // 3. Foreground Pass (z > 0)
+    if (!this.offscreen) {
+      this.offscreen = document.createElement('canvas');
+      this.offscreenCtx = this.offscreen.getContext('2d');
+    }
+    if (this.offscreen.width !== this.canvas.width) {
+      this.offscreen.width = this.canvas.width;
+      this.offscreen.height = this.canvas.height;
+    }
+
+    states.forEach(item => {
+      if (!item || item.state.z <= 0) return;
+      
+      // Draw Colored Letter to Main Canvas (Isolated via offscreen)
+      const oCtx = this.offscreenCtx;
+      oCtx.clearRect(0, 0, this.offscreen.width, this.offscreen.height);
+      oCtx.save();
+      oCtx.font = metrics.font;
+      oCtx.letterSpacing = metrics.spacing;
+      oCtx.textBaseline = 'middle';
+      oCtx.translate(item.state.x, item.state.y);
+      oCtx.rotate(item.state.rot);
+      oCtx.scale(item.state.scaleX, item.state.scaleY);
+      oCtx.fillStyle = '#fff';
+      oCtx.fillText(item.letter.char, -item.letter.width / 2, 0);
+      oCtx.restore();
+
+      oCtx.globalCompositeOperation = 'source-in';
+      oCtx.drawImage(webgl.canvas, 0, 0, this.offscreen.width, this.offscreen.height);
+      oCtx.globalCompositeOperation = 'source-over';
+
+      // Final draw back to main canvas
+      ctx.drawImage(this.offscreen, 0, 0);
+    });
     
     requestAnimationFrame((t) => this.render(t));
   },
 
-  renderPlayButton(letter, startX, y, fontSize) {
-    const { ctx } = this;
-    const nextL = this.interactiveLetters[3];
-    const combinedWidth = (nextL.relX + nextL.width) - letter.relX;
-    const centerX = startX + letter.relX + combinedWidth / 2;
+  renderPlayPauseTransition(l1, l2, startX, y, fontSize, dt, floor) {
+    const { ctx, playTransition, metrics } = this;
+    const dpr = metrics.dpr;
+    const t = playTransition;
+    
+    // Ease for smooth motion
+    const easeIn = t * t;
+    const easeOut = 1 - Math.pow(1 - t, 3);
+    
+    const combinedWidth = (l2.relX + l2.width) - l1.relX;
+    const centerX = startX + l1.relX + combinedWidth / 2;
+    // Shift slightly left (2px * dpr) to visually balance the triangle
+    const visualCenterX = centerX - 2 * dpr;
+
+    // Update physical states even if we draw them differently
+    const s1 = this.updateLetterState(l1, dt, y, startX, floor);
+    const s2 = this.updateLetterState(l2, dt, y, startX, floor);
+
     ctx.save();
-    ctx.translate(centerX, y);
-    const size = fontSize * 0.4;
-    ctx.beginPath();
-    ctx.moveTo(-size * 0.4, -size * 0.6);
-    ctx.lineTo(size * 0.7, 0);
-    ctx.lineTo(-size * 0.4, size * 0.6);
-    ctx.closePath();
-    ctx.fill();
+    
+    // 1. Render 'll' with transition
+    if (t < 0.99) {
+      ctx.globalAlpha = 1 - easeIn;
+      
+      [ {l:l1, s:s1, dir: -1}, {l:l2, s:s2, dir: 1} ].forEach(item => {
+        ctx.save();
+        // Lerp from current physical position to center transition point
+        const targetX = startX + item.l.relX + item.l.width / 2;
+        const tx = item.s.x + (targetX - item.s.x) * t;
+        const ty = item.s.y + (y - item.s.y) * t;
+        const trot = item.s.rot * (1 - t) + (item.dir * Math.PI * 0.4) * t;
+        const ts = item.s.scaleX * (1 - t) + 0.6 * t;
+        
+        ctx.translate(tx, ty);
+        ctx.rotate(trot);
+        ctx.scale(ts, ts);
+        ctx.fillText(item.l.char, -item.l.width / 2, 0);
+        ctx.restore();
+      });
+    }
+    
+    // 2. Render Play Triangle with transition
+    if (t > 0.01) {
+      ctx.save();
+      ctx.globalAlpha = easeOut;
+      const scale = 0.4 + easeOut * 0.6;
+      
+      // Use average physical position and rotation of 'l's so triangle explodes too
+      const physCenterX = (s1.x + s2.x) / 2;
+      const physCenterY = (s1.y + s2.y) / 2;
+      const physRot = (s1.rot + s2.rot) / 2;
+      const offset = visualCenterX - centerX;
+
+      const rot = (1 - easeOut) * -Math.PI * 0.5 + physRot;
+      
+      ctx.translate(physCenterX + offset, physCenterY);
+      ctx.rotate(rot);
+      ctx.scale(scale, scale);
+      
+      const size = fontSize * 0.4;
+      ctx.beginPath();
+      // Balanced and centered triangle points
+      ctx.moveTo(-0.5 * size, -0.6 * size);
+      ctx.lineTo(0.6 * size, 0);
+      ctx.lineTo(-0.5 * size, 0.6 * size);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+    
     ctx.restore();
+    ctx.globalAlpha = 1.0;
   },
 
   updateLetterState(letter, dt, yBase, startX, floor) {
@@ -334,7 +467,9 @@ const TitleEngine = {
       y: yBase,
       rot: 0,
       scaleX: 1,
-      scaleY: 1
+      scaleY: 1,
+      z: 0,
+      shadow: 0
     };
 
     if (anim.mode === 'idle') return state;
@@ -415,6 +550,34 @@ const TitleEngine = {
         if (p <= durs.swing) {
           state.rot = this.getSwingParams(p).rot * Math.PI / 180;
         } else anim.mode = 'idle';
+        break;
+
+      case 'swap':
+        if (p <= durs.swap) {
+          const ep = 1 - Math.pow(1 - (p / durs.swap), 3);
+          const focal = 600, zArc = 350;
+          
+          const o1 = this.interactiveLetters[1];
+          const o2 = this.interactiveLetters[13];
+          if (!o1 || !o2) { anim.mode = 'idle'; break; }
+
+          const other = (letter === o1) ? o2 : o1;
+          const startRelX = anim.origRelX;
+          const endRelX = other.anim.origRelX;
+          
+          const zDir = anim.isPrimary ? -1 : 1;
+          const z = zDir * zArc * Math.sin(ep * Math.PI);
+          const pScale = focal / (focal - z);
+          
+          state.x = startX + (startRelX + (endRelX - startRelX) * ep) + letter.width / 2;
+          state.scaleX = pScale;
+          state.scaleY = pScale;
+          state.z = z;
+          state.shadow = z > 0 ? Math.sin(ep * Math.PI) : 0;
+        } else {
+          anim.mode = 'idle';
+          this.oSwapping = false;
+        }
         break;
     }
     return state;
@@ -537,9 +700,28 @@ const TitleEngine = {
       this.handleExplosionInteraction();
     } else if (letter.char === 'y') {
       this.handleYInteraction(letter);
+    } else if (letter.char.toLowerCase() === 'o') {
+      this.handleOSwap(letter);
     } else if (letter.char === 'l' && (letter.index === 2 || letter.index === 3)) {
       this.toggleSpace();
     }
+  },
+
+  handleOSwap(clickedLetter) {
+    if (this.oSwapping) return;
+    const o1 = this.interactiveLetters[1];
+    const o2 = this.interactiveLetters[13];
+    if (!o1 || !o2 || o1.char.toLowerCase() !== 'o' || o2.char.toLowerCase() !== 'o') return;
+
+    this.oSwapping = true;
+    const start = performance.now();
+    
+    [o1, o2].forEach(l => {
+      l.anim.mode = 'swap';
+      l.anim.start = start;
+      l.anim.isPrimary = (l === clickedLetter);
+      l.anim.origRelX = l.relX;
+    });
   },
 
   toggleSpace() {
