@@ -49,11 +49,13 @@
   function parseRSS(xmlText) {
     const xml     = new DOMParser().parseFromString(xmlText, 'text/xml');
     const entries = [...xml.querySelectorAll('entry')];
-    return entries.map(entry => ({
-      title:   entry.querySelector('title')?.textContent   || '',
-      link:    entry.querySelector('link')?.getAttribute('href') || '',
-      pubDate: entry.querySelector('published')?.textContent || '',
-    }));
+    return entries
+      .map(entry => ({
+        title:   entry.querySelector('title')?.textContent        || '',
+        link:    entry.querySelector('link')?.getAttribute('href') || '',
+        pubDate: entry.querySelector('published')?.textContent    || '',
+      }))
+      .filter(item => !item.link.includes('/shorts/'));
   }
 
   async function loadVideos() {
