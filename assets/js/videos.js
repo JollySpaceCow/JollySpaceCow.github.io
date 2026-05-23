@@ -5,6 +5,8 @@
   const CACHE_KEY  = 'jsc_videos_cache';
   const CACHE_TTL  = 6 * 60 * 60 * 1000; // 6 hours
 
+  const EXCLUDED_IDS = ['K_QmIvBB-Sc']; // Shorts that YouTube misidentifies as regular videos
+
   const FALLBACK_ITEMS = [
     { title: "I Built the Stargate KAWOOSH in Blender!",         link: "https://www.youtube.com/watch?v=kN0PlQtC3aY", pubDate: new Date(Date.now() -  30 * 86400000).toISOString() },
     { title: "I Finally Solved My Animation Problem",            link: "https://www.youtube.com/watch?v=01x70FeGbEc", pubDate: new Date(Date.now() - 150 * 86400000).toISOString() },
@@ -55,7 +57,8 @@
         link:    entry.querySelector('link')?.getAttribute('href') || '',
         pubDate: entry.querySelector('published')?.textContent    || '',
       }))
-      .filter(item => !item.link.includes('/shorts/'));
+      .filter(item => !item.link.includes('/shorts/'))
+      .filter(item => !EXCLUDED_IDS.includes(getVideoId(item.link)));
   }
 
   async function loadVideos() {
