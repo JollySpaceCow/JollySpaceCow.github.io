@@ -84,8 +84,17 @@
       const res      = await fetch(proxyUrl);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-      const items = parseRSS(await res.text());
-      if (!items.length) throw new Error('Empty feed');
+      const rssItems = parseRSS(await res.text());
+
+      // Top up to 6 with fallback items if the feed doesn't have enough after filtering
+      let items = rssItems;
+      if (items.length < 6) {
+        const liveIds = new Set(items.map(i => getVideoId(i.link)).filter(Boolean));
+        const extras  = FALLBACK_ITEMS.filter(i => !liveIds.has(getVideoId(i.link)));
+        items = [...items, ...extras].slice(0, 6);
+      }
+
+      if (!items.length) throw new Error('No items');
 
       localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), items }));
       grid.innerHTML = renderCards(items);
