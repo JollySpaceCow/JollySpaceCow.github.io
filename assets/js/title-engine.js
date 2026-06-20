@@ -14,6 +14,7 @@ const TitleEngine = {
   isSpacePaused: false,
   playTransition: 0, // 0 = playing (ll), 1 = paused (triangle)
   oSwapping: false,
+  oSwapState: null,
   colorMode: 0, 
   yClickCount: 0,
   currentHue: 0,
@@ -296,6 +297,10 @@ const TitleEngine = {
     const dt = Math.min((time - this.lastPhysTime) / 1000, 0.1); 
     this.lastPhysTime = time;
 
+    if (this.oSwapping && this.oSwapState) {
+      this.updateOSwapState(dt);
+    }
+
     const states = this.interactiveLetters.map((letter, i) => {
       if (letter.char === 'l' && (i === 2 || i === 3)) return null;
       return { letter, state: this.updateLetterState(letter, dt, y, startX, floor) };
@@ -552,33 +557,36 @@ const TitleEngine = {
         } else anim.mode = 'idle';
         break;
 
-      case 'swap':
-        if (p <= durs.swap) {
-          const ep = 1 - Math.pow(1 - (p / durs.swap), 3);
-          const focal = 600, zArc = 350;
-          
-          const o1 = this.interactiveLetters[1];
-          const o2 = this.interactiveLetters[13];
-          if (!o1 || !o2) { anim.mode = 'idle'; break; }
+      case 'swap': {
+        const swapState = this.oSwapState;
+        if (!swapState) { anim.mode = 'idle'; break; }
 
-          const other = (letter === o1) ? o2 : o1;
-          const startRelX = anim.origRelX;
-          const endRelX = other.anim.origRelX;
-          
-          const zDir = anim.isPrimary ? -1 : 1;
-          const z = zDir * zArc * Math.sin(ep * Math.PI);
-          const pScale = focal / (focal - z);
-          
-          state.x = startX + (startRelX + (endRelX - startRelX) * ep) + letter.width / 2;
-          state.scaleX = pScale;
-          state.scaleY = pScale;
-          state.z = z;
-          state.shadow = z > 0 ? Math.sin(ep * Math.PI) : 0;
-        } else {
-          anim.mode = 'idle';
-          this.oSwapping = false;
-        }
+        const focal = 600, zArc = 350;
+        const o1Orig = swapState.o1.anim.origRelX;
+        const o2Orig = swapState.o2.anim.origRelX;
+        
+        // Find the centre and radius of the rotation path
+        const leftOrig = Math.min(o1Orig, o2Orig);
+        const rightOrig = Math.max(o1Orig, o2Orig);
+        const centreRelX = (leftOrig + rightOrig) / 2;
+        const radiusX = (rightOrig - leftOrig) / 2;
+
+        const startsOnLeft = (anim.origRelX === leftOrig);
+        const xRel = startsOnLeft
+          ? centreRelX - radiusX * Math.cos(swapState.theta)
+          : centreRelX + radiusX * Math.cos(swapState.theta);
+
+        const zDir = anim.isPrimary ? -1 : 1;
+        const z = zDir * zArc * Math.sin(swapState.theta);
+        const pScale = focal / (focal - z);
+
+        state.x = startX + xRel + letter.width / 2;
+        state.scaleX = pScale;
+        state.scaleY = pScale;
+        state.z = z;
+        state.shadow = z > 0 ? Math.abs(Math.sin(swapState.theta)) : 0;
         break;
+      }
 
       case 'spin':
         if (p <= 0.6) {
@@ -642,6 +650,86 @@ const TitleEngine = {
     anim.curX = anim.px; anim.curY = anim.py; anim.curRot = anim.prot;
   },
 
+  updateOSwapState(dt) {
+    const swapState = this.oSwapState;
+    if (!swapState) return;
+
+    if (!swapState.settling) {
+      swapState.omega *= Math.exp(-0.85 * dt);
+
+      if (Math.abs(swapState.omega) < 1.2) {
+        const lowerHome = Math.floor(swapState.theta / Math.PI) * Math.PI;
+        const upperHome = lowerHome + Math.PI;
+        swapState.targetTheta = upperHome;
+
+        const settleDistance = Math.abs(swapState.targetTheta - swapState.theta);
+        swapState.settleStartTheta = swapState.theta;
+        swapState.settleElapsed = 0;
+        swapState.settleDuration = Math.min(1.05, Math.max(0.24, settleDistance / 1.65));
+        swapState.settleStartOmega = Math.min(Math.abs(swapState.omega), settleDistance * 1.8 / swapState.settleDuration);
+        swapState.settling = true;
+      } else {
+        const lowerHome = Math.floor(swapState.theta / Math.PI) * Math.PI;
+        const upperHome = lowerHome + Math.PI;
+        const nextTheta = swapState.theta + Math.abs(swapState.omega) * dt;
+        const willCrossHome = nextTheta >= upperHome;
+
+        if (Math.abs(swapState.omega) < 1.6 && willCrossHome) {
+          swapState.targetTheta = upperHome;
+          const settleDistance = upperHome - swapState.theta;
+          swapState.settleStartTheta = swapState.theta;
+          swapState.settleElapsed = 0;
+          swapState.settleDuration = Math.min(0.45, Math.max(0.18, settleDistance / 1.65));
+          swapState.settleStartOmega = Math.min(Math.abs(swapState.omega), settleDistance * 1.8 / swapState.settleDuration);
+          swapState.settling = true;
+          return;
+        }
+
+        swapState.theta = nextTheta;
+      }
+    } else {
+      swapState.settleElapsed += dt;
+      const t = Math.min(swapState.settleElapsed / swapState.settleDuration, 1);
+      const startTheta = swapState.settleStartTheta;
+      const diff = swapState.targetTheta - startTheta;
+      const startSlope = (swapState.settleStartOmega || 0) * swapState.settleDuration;
+      const h00 = 2 * t * t * t - 3 * t * t + 1;
+      const h10 = t * t * t - 2 * t * t + t;
+      const h01 = -2 * t * t * t + 3 * t * t;
+
+      swapState.theta = h00 * startTheta + h10 * startSlope + h01 * swapState.targetTheta;
+
+      if (t >= 1) {
+        swapState.theta = swapState.targetTheta;
+        this.oSwapping = false;
+
+        const targetIndex = Math.round(swapState.targetTheta / Math.PI);
+        if (Math.abs(targetIndex % 2) === 1) {
+          // Swap their home positions for layout purposes
+          const tempRelX = swapState.o1.relX;
+          swapState.o1.relX = swapState.o2.relX;
+          swapState.o2.relX = tempRelX;
+
+          const tempWidth = swapState.o1.width;
+          swapState.o1.width = swapState.o2.width;
+          swapState.o2.width = tempWidth;
+        }
+
+        swapState.o1.anim.mode = 'idle';
+        swapState.o2.anim.mode = 'idle';
+        this.oSwapState = null;
+      }
+    }
+  },
+
+  triggerOSwapSpeedUp() {
+    if (!this.oSwapping || !this.oSwapState) return;
+    
+    this.oSwapState.omega = Math.abs(this.oSwapState.omega) + 8.5;
+    
+    this.oSwapState.settling = false;
+  },
+
   getFallParams(p, fallDist) {
     let ty = 0, rot = 0;
     if (p <= 0.6) { let t = Math.pow(p / 0.6, 3); ty = t * fallDist; rot = -3 + t * 7; }
@@ -680,6 +768,32 @@ const TitleEngine = {
     const fontSize = parseFloat(this.metrics.font.split(' ')[1]) || 0;
     const y = (rect.top + rect.height / 2) * dpr + (fontSize * 0.05);
     const startX = (rect.left + rect.width / 2) * dpr - (this.metrics.totalWidth / 2);
+
+    // Special detection for clicking the 'o' home locations during swap animation
+    if (this.oSwapping) {
+      const o1 = this.interactiveLetters[1];
+      const o2 = this.interactiveLetters[13];
+      let clickedOHome = false;
+      [o1, o2].forEach(oLetter => {
+        if (!oLetter || !this.cachedHulls[oLetter.char]) return;
+        // Calculate home state
+        const homeState = {
+          x: startX + oLetter.relX + oLetter.width / 2,
+          y: y,
+          rot: 0,
+          scaleX: 1,
+          scaleY: 1
+        };
+        const homeHull = Physics.getTransformedHull(this.cachedHulls[oLetter.char], homeState.x, homeState.y, homeState.scaleX, homeState.scaleY, homeState.rot, -oLetter.width / 2, 0);
+        if (Physics.isPointInPolygon({ x: mx, y: my }, homeHull)) {
+          clickedOHome = true;
+        }
+      });
+      if (clickedOHome) {
+        this.triggerOSwapSpeedUp();
+        return;
+      }
+    }
 
     // 'll' combined hitbox
     const l1 = this.interactiveLetters[2], l2 = this.interactiveLetters[3];
@@ -729,20 +843,30 @@ const TitleEngine = {
   },
 
   handleOSwap(clickedLetter) {
-    if (this.oSwapping) return;
     const o1 = this.interactiveLetters[1];
     const o2 = this.interactiveLetters[13];
     if (!o1 || !o2 || o1.char.toLowerCase() !== 'o' || o2.char.toLowerCase() !== 'o') return;
 
-    this.oSwapping = true;
-    const start = performance.now();
-    
-    [o1, o2].forEach(l => {
-      l.anim.mode = 'swap';
-      l.anim.start = start;
-      l.anim.isPrimary = (l === clickedLetter);
-      l.anim.origRelX = l.relX;
-    });
+    if (!this.oSwapping) {
+      this.oSwapping = true;
+      this.oSwapState = {
+        theta: 0,
+        omega: 6.8, // Initial angular velocity (rad/s)
+        settling: false,
+        targetTheta: 0,
+        o1: o1,
+        o2: o2,
+        clickedLetter: clickedLetter
+      };
+
+      [o1, o2].forEach(l => {
+        l.anim.mode = 'swap';
+        l.anim.origRelX = l.relX;
+        l.anim.isPrimary = (l === clickedLetter);
+      });
+    } else {
+      this.triggerOSwapSpeedUp();
+    }
   },
 
   toggleSpace() {
