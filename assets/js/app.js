@@ -19,8 +19,21 @@ const App = {
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('./sw.js')
-          .then(reg => console.log('✅ ServiceWorker active'))
+          .then(reg => {
+            console.log('✅ ServiceWorker registered');
+            // Check for service worker updates immediately on load
+            reg.update();
+          })
           .catch(err => console.warn('❌ ServiceWorker failed:', err));
+
+        // Reload the page automatically when a new service worker takes over control
+        let refreshing = false;
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          if (!refreshing) {
+            refreshing = true;
+            window.location.reload();
+          }
+        });
       });
     }
   },

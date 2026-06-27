@@ -1,7 +1,7 @@
 // Jolly Space Cow — Service Worker
 // Caches the site for offline use and serves a fun offline page when disconnected
 
-const CACHE_NAME = 'jsc-v25'; // Version 25: Restructured modular scripts
+const CACHE_NAME = 'jsc-2026-06-27-v6'; // Precache only troll.js
 
 const PRECACHE_URLS = [
   './',
@@ -31,6 +31,7 @@ const PRECACHE_URLS = [
   './assets/js/games.js',
   './assets/js/gallery.js',
   './assets/js/offline.js',
+  './assets/js/troll.js',
   
   // Public assets
   './public/favicon.ico',

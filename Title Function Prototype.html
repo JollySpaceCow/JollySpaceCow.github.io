@@ -307,7 +307,7 @@
     class="letter" id="l-p" data-hint="explode">p<span class="letter-hint">explode</span></span><span
     class="letter" id="l-a" data-hint="orbit">a<span class="letter-hint">orbit</span></span><span
     class="letter" id="l-c" data-hint="starfield">c<span class="letter-hint">starfield</span></span><span
-    class="letter" id="l-e" data-hint="morph">e<span class="letter-hint">morph</span></span><span
+    class="letter" id="l-e" data-hint="squish">e<span class="letter-hint">squish</span></span><span
     class="letter space-char"> </span><span
     class="letter" id="l-C" data-hint="egg">C<span class="letter-hint">egg</span></span><span
     class="letter" id="l-o2" data-hint="swap">o<span class="letter-hint">swap</span></span><span
@@ -771,20 +771,40 @@ lc.addEventListener('click',()=>{
 
 /* ═══════════════════════════════════════════════
    e — squishy morph o1 → e
+   Clicking the 'e' in "Space" transforms the 'o'
+   in "Jolly" into an 'e' with a squishy effect.
 ═══════════════════════════════════════════════ */
-let eMorphBusy=false;
-le.addEventListener('click',()=>{
-  if(eMorphBusy||oSwapping)return; eMorphBusy=true;
-  lo1.style.animation='squishMorph 0.45s cubic-bezier(.36,.07,.19,.97)';
-  setTimeout(()=>{
-    lo1.textContent='e';
-    lo1.style.animation='squishMorph 0.45s cubic-bezier(.36,.07,.19,.97) reverse';
-    setTimeout(()=>{
-      lo1.textContent='o';
-      lo1.style.animation='';
-      eMorphBusy=false;
-    },1000);
-  },225);
+let eMorphBusy = false;
+le.addEventListener('click', () => {
+  // Guard: skip if another morph or an o-swap is mid-flight
+  if (eMorphBusy) return;
+  // Note: deliberately NOT guarding on oSwapping — the two effects
+  // operate on different elements so they can coexist.
+  eMorphBusy = true;
+
+  const target = document.getElementById('l-o1'); // always fresh ref
+
+  // --- Phase 1: squish OUT ---
+  target.style.animation = 'none';
+  void target.offsetWidth; // flush reflow so animation restarts cleanly
+  target.style.animation = 'squishMorph 0.45s cubic-bezier(.36,.07,.19,.97) forwards';
+
+  // At the peak of the squish (~midpoint), swap 'o' → 'e'
+  setTimeout(() => {
+    target.innerHTML = 'e<span class="letter-hint">swap</span>';
+
+    // --- Phase 2: squish BACK ---
+    target.style.animation = 'none';
+    void target.offsetWidth;
+    target.style.animation = 'squishMorph 0.45s cubic-bezier(.36,.07,.19,.97) reverse forwards';
+
+    // After the reverse squish finishes, restore 'o'
+    setTimeout(() => {
+      target.innerHTML = 'o<span class="letter-hint">swap</span>';
+      target.style.animation = '';
+      eMorphBusy = false;
+    }, 500);
+  }, 225);
 });
 
 /* ═══════════════════════════════════════════════

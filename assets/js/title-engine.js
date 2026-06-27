@@ -10,6 +10,7 @@ const TitleEngine = {
   
   metrics: { font: '', spacing: '0px', dpr: 1, totalWidth: 0, y: 0, startX: 0 },
   interactiveLetters: [], // Array of { char, index, relX, width, anim: { mode, start, ... } }
+  particles: [], // Array of active smoke particles
   cachedHulls: {}, 
   isSpacePaused: false,
   playTransition: 0, // 0 = playing (ll), 1 = paused (triangle)
@@ -386,6 +387,51 @@ const TitleEngine = {
       // Final draw back to main canvas
       ctx.drawImage(this.offscreen, 0, 0);
     });
+
+    // Update and render smoke particles
+    if (this.particles && this.particles.length > 0) {
+      this.particles.forEach(p => {
+        // Once a particle hits its splay ground level, switch to horizontal flow
+        if (!p.splayed && p.vy > 0 && p.y >= p.groundY) {
+          p.splayed = true;
+          p.vy = 0;
+          // Preserve horizontal momentum and add a strong outward kick
+          const dir = Math.sign(p.splayDir);
+          p.vx = dir * (180 + Math.random() * 260) * p.dpr;
+        }
+
+        if (p.splayed) {
+          // Spread outward; decelerate fairly quickly so it pools
+          p.vx *= 0.90;
+          p.vy = 0;
+          p.growth *= 0.80; // puff up less once on the ground
+        } else {
+          p.vx *= 0.95;
+          p.vy *= 0.95;
+        }
+
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.size += p.growth * dt;
+        p.life -= p.decay * dt;
+      });
+
+      this.particles = this.particles.filter(p => p.life > 0);
+
+      this.particles.forEach(p => {
+        ctx.save();
+        ctx.globalAlpha = p.life * p.alpha;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        if (p.isFire) {
+          ctx.fillStyle = p.color;
+        } else {
+          ctx.fillStyle = p.color + p.life + ')';
+        }
+        ctx.fill();
+        ctx.restore();
+      });
+    }
     
     requestAnimationFrame((t) => this.render(t));
   },
@@ -598,6 +644,46 @@ const TitleEngine = {
           anim.mode = 'idle';
         }
         break;
+
+      case 'rocket': {
+        const durationRumble = 1.2;
+        if (p <= durationRumble) {
+          state.x += (Math.random() - 0.5) * 6 * dpr;
+          state.y += (Math.random() - 0.5) * 6 * dpr;
+          this.emitSmoke(state.x, state.y + letter.width * 0.2, dpr, 'rumble');
+        } else {
+          const tBlast = p - durationRumble;
+          const accel = 2800; // pixels/sec^2
+          const dy = -0.5 * accel * tBlast * tBlast;
+          state.y += dy * dpr;
+          this.emitSmoke(state.x, state.y + letter.width * 0.2, dpr, true);
+          const isOffScreen = state.y < -150 * dpr;
+          if (isOffScreen && !anim.returning) {
+            anim.returning = true;
+            setTimeout(() => {
+              anim.mode = 'rocket_return';
+              anim.start = performance.now();
+              anim.returning = false;
+            }, 3000);
+          }
+        }
+        break;
+      }
+
+      case 'rocket_return': {
+        const durationReturn = 1.8;
+        if (p <= durationReturn) {
+          const t = p / durationReturn;
+          // Smooth glide-in ease-out (cubic)
+          const ease = 1 - Math.pow(1 - t, 3);
+          const startY = (window.innerHeight + 150) * dpr;
+          const targetY = yBase;
+          state.y = startY + (targetY - startY) * ease;
+        } else {
+          anim.mode = 'idle';
+        }
+        break;
+      }
     }
     return state;
   },
@@ -831,6 +917,8 @@ const TitleEngine = {
       this.toggleSpace();
     } else if (letter.char === 'c' && letter.index === 9) {
       this.handleStarfieldToggle(letter);
+    } else if (letter.char === 'S') {
+      this.handleSInteraction(letter, yBase, fontSize);
     }
   },
 
@@ -915,6 +1003,81 @@ const TitleEngine = {
         anim.mode = 'reverse'; anim.start = performance.now();
         clearTimeout(anim.t1); clearTimeout(anim.t2);
         anim.t1 = setTimeout(() => { this.shakeScreen(); anim.t2 = setTimeout(() => { if (anim.mode === 'reverse') anim.mode = 'idle'; }, 400); }, 600);
+      }
+    }
+  },
+
+  handleSInteraction(letter, yBase, fontSize) {
+    const anim = letter.anim;
+    if (anim.mode === 'idle') {
+      anim.mode = 'rocket';
+      anim.start = performance.now();
+      anim.returning = false;
+    }
+  },
+
+  emitSmoke(x, y, dpr, mode) {
+    // Avoid performance lag on lower-end devices by limiting active particles
+    if (this.particles.length >= 45) return;
+    
+    // Throttle rate of particle creation (spawn roughly 25% of frames)
+    if (Math.random() > 0.25) return;
+
+    const isBlasting = mode === true || mode === 'blast';
+    const isRumble = mode === 'rumble';
+
+    // Generate fire and smoke particles with Australian spelling-compliant comments
+    const count = isBlasting ? 2 : 1;
+    // Ground level is just below the letter — blast smoke splays out here
+    const groundY = y + 40 * dpr;
+
+    for (let i = 0; i < count; i++) {
+      const isFire = isBlasting && Math.random() < 0.45;
+      // Random left/right direction for splay
+      const splayDir = Math.random() < 0.5 ? -1 : 1;
+
+      if (isRumble) {
+        // During rumble the smoke shoots directly left or right, hugging the ground
+        this.particles.push({
+          x: x + splayDir * (5 + Math.random() * 8) * dpr,
+          y: y,
+          vx: splayDir * (120 + Math.random() * 180) * dpr,
+          vy: (5 + Math.random() * 15) * dpr, // tiny downward drift to hug the baseline
+          alpha: 0.5 + Math.random() * 0.3,
+          size: (6 + Math.random() * 8) * dpr,
+          growth: (10 + Math.random() * 14) * dpr,
+          color: `rgba(${185 + Math.random() * 20}, ${185 + Math.random() * 20}, ${185 + Math.random() * 20}, `,
+          isFire: false,
+          splayed: true,   // already splayed — skip the fall phase
+          splayDir: splayDir,
+          groundY: groundY,
+          dpr: dpr,
+          life: 1.0,
+          decay: 1.2 + Math.random() * 0.8
+        });
+      } else {
+        this.particles.push({
+          x: x + (Math.random() - 0.5) * 14 * dpr,
+          y: y,
+          // Small horizontal drift on spawn; splay direction assigned for when it hits ground
+          vx: splayDir * (10 + Math.random() * 20) * dpr,
+          // Downward velocity so it falls toward the figurative ground
+          vy: (isBlasting ? (60 + Math.random() * 100) : (30 + Math.random() * 50)) * dpr,
+          alpha: 0.55 + Math.random() * 0.3,
+          size: (7 + Math.random() * 10) * dpr,
+          growth: (12 + Math.random() * 18) * dpr,
+          // Establish orange/yellow flame or grey smoke colour
+          color: isFire 
+            ? `hsl(${15 + Math.random() * 20}, 100%, ${55 + Math.random() * 15}%)` 
+            : `rgba(${175 + Math.random() * 25}, ${175 + Math.random() * 25}, ${175 + Math.random() * 25}, `,
+          isFire: isFire,
+          splayed: false,
+          splayDir: splayDir,
+          groundY: groundY,
+          dpr: dpr,
+          life: 1.0,
+          decay: 1.0 + Math.random() * 0.8
+        });
       }
     }
   },
