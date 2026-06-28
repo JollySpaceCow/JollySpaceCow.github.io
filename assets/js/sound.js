@@ -9,25 +9,35 @@ const SoundEngine = {
   buffers: {},
   unlocked: false,
 
+  // ll toggle state
+  llToggle: false,
+
+  // y + c pitch - random each click, subtle range
+  yPitchMin: 0.9,
+  yPitchMax: 1.1,
+  cPitchMin: 0.9,
+  cPitchMax: 1.1,
+
+  // O spinning whoosh nodes (Web Audio, not a buffer)
+  oSpinNodes: null,
+
   // Map each interaction to an audio file in /assets/audio/
   sounds: {
-    J:         'Boing_SeResourceStd2nd_00000281.ogg',              // J jumps up
-    ll:        'Bup.mp3',                                          // ll toggles space pause
-    o:         'Coin_(dropping)_SeResourceStd2nd_00000270.ogg',    // O's orbit swap
-    p_explode: 'Bang_SeResourceStd2nd_00001014.ogg',               // p explodes letters
-    p_return:  'Plop_SeResourceStd2nd_00000273.ogg',               // p returns letters
-    w_fall:    'Plop_SeResourceStd2nd_00000275.ogg',               // w falls down
-    w_reverse: 'Plop_SeResourceStd2nd_00000837.ogg',               // w reverses
-    S:         'Siren_SeResourceStd2nd_00001028.ogg',              // S rocket launch
-    y:         'Whistling_Whistle_SeResourceStd2nd_00001034.ogg',  // y swing + hue
-    c:         'Bell_SeResourceStdSystem_00000134.ogg',            // c starfield toggle
-    shake:     'Unknown_Sound_SeResourceStdSystem_00000133.ogg',   // screen shake boom
-    moo:       'Moo.mp3',                                          // 🐄 moo kicker
-    vineboom:  'vineboom.mp3',                                     // bonus
+    J:         'Boing_SeResourceStd2nd_00001029.ogg',
+    ll_a:      'Sound_effect_SeResourceStd2nd_00000267.ogg',
+    ll_b:      'Sound_effect_SeResourceStd2nd_00000271.ogg',
+    p_explode: 'Music_SeResourceStd2nd_00000133.ogg',
+    p_return:  'Plop_SeResourceStd2nd_00000273.ogg',
+    w_land:    'Bang_SeResourceStd2nd_00001014.ogg',
+    S:         'Siren_SeResourceStd2nd_00001028.ogg',
+    y:         'Whistling_Whistle_SeResourceStd2nd_00001034.ogg',
+    c:         'Boing_SeResourceStd2nd_00001029.ogg',
+    shake:     'Unknown_Sound_SeResourceStdSystem_00000133.ogg',
+    moo:       'Moo.mp3',
+    vineboom:  'vineboom.mp3',
   },
 
   init() {
-    // Create AudioContext on first user interaction (browser requirement)
     const unlock = () => {
       if (this.unlocked) return;
       this.ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -58,10 +68,11 @@ const SoundEngine = {
     console.log('🔊 Sounds preloaded:', Object.keys(this.buffers));
   },
 
-  play(key, volume = 1.0) {
+  play(key, volume = 1.0, pitch = 1.0) {
     if (!this.ctx || !this.buffers[key]) return;
     const source = this.ctx.createBufferSource();
     source.buffer = this.buffers[key];
+    source.playbackRate.value = pitch;
     const gain = this.ctx.createGain();
     gain.gain.value = volume;
     source.connect(gain);
@@ -69,9 +80,60 @@ const SoundEngine = {
     source.start(0);
   },
 
-  // Monkey-patch TitleEngine methods to fire sounds alongside interactions
+  // --- Procedural O spin sound ---
+  // Drives an oscillator whose frequency and volume track oSwapState.omega
+  startOSpin() {
+    if (!this.ctx) return;
+    this.stopOSpin();
+
+    const osc = this.ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = 150;
+
+    const gain = this.ctx.createGain();
+    gain.gain.value = 0;
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start();
+
+    this.oSpinNodes = { osc, gain };
+
+    const drive = () => {
+      if (!this.oSpinNodes) return;
+      const state = TitleEngine.oSwapState;
+
+      if (!state || !TitleEngine.oSwapping) {
+        gain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.2);
+        setTimeout(() => this.stopOSpin(), 600);
+        return;
+      }
+
+      const omega = Math.abs(state.omega); // rad/s, starts ~6.8, decays to 0
+      // Map omega (0–12) → freq (120–900 Hz) and volume (0–0.2)
+      const freq = 120 + (omega / 12) * 780;
+      const vol  = Math.min(omega / 12, 1) * 0.2;
+
+      osc.frequency.setTargetAtTime(freq, this.ctx.currentTime, 0.04);
+      gain.gain.setTargetAtTime(vol, this.ctx.currentTime, 0.04);
+
+      requestAnimationFrame(drive);
+    };
+
+    requestAnimationFrame(drive);
+  },
+
+  stopOSpin() {
+    if (!this.oSpinNodes) return;
+    try {
+      this.oSpinNodes.osc.stop();
+      this.oSpinNodes.osc.disconnect();
+      this.oSpinNodes.gain.disconnect();
+    } catch (_) {}
+    this.oSpinNodes = null;
+  },
+
   patchTitleEngine() {
-    // Wait for TitleEngine to be ready
     const wait = setInterval(() => {
       if (typeof TitleEngine === 'undefined') return;
       clearInterval(wait);
@@ -83,32 +145,65 @@ const SoundEngine = {
         const idx  = letter.index;
 
         if (char === 'J' && idx === 0) {
-          SoundEngine.play('J');
+          const pitch = 0.9 + Math.random() * 0.2;
+          SoundEngine.play('J', 0.3, pitch);
+
         } else if (char === 'w') {
-          const mode = letter.anim.mode;
-          SoundEngine.play(mode === 'fall' ? 'w_reverse' : 'w_fall');
+          // Sound plays on landing via shakeScreen patch, not on click
+
         } else if (char === 'p' && idx === 7) {
           const inPhysics = TitleEngine.interactiveLetters.some(l => l.anim.mode === 'physics');
-          SoundEngine.play(inPhysics ? 'p_return' : 'p_explode');
+          if (inPhysics) {
+            SoundEngine.play('p_return', 0.3);
+          } else {
+            SoundEngine.play('p_explode', 0.3);
+          }
+
         } else if (char === 'y') {
-          SoundEngine.play('y');
+          const pitch = SoundEngine.yPitchMin + Math.random() * (SoundEngine.yPitchMax - SoundEngine.yPitchMin);
+          SoundEngine.play('y', 0.3, pitch);
+
         } else if (char.toLowerCase() === 'o') {
-          SoundEngine.play('o');
+          SoundEngine.startOSpin();
+
         } else if (char === 'l' && (idx === 2 || idx === 3)) {
-          SoundEngine.play('ll');
+          SoundEngine.llToggle = !SoundEngine.llToggle;
+          SoundEngine.play(SoundEngine.llToggle ? 'll_a' : 'll_b', 0.3);
+
         } else if (char === 'c' && idx === 9) {
-          SoundEngine.play('c');
+          const pitch = SoundEngine.cPitchMin + Math.random() * (SoundEngine.cPitchMax - SoundEngine.cPitchMin);
+          SoundEngine.play('c', 0.3, pitch);
+
         } else if (char === 'S') {
-          SoundEngine.play('S', 0.6);
+          const pitch = 0.9 + Math.random() * 0.2;
+          SoundEngine.play('S', 0.25, pitch);
         }
 
         origTrigger(letter, yBase, fontSize);
       };
 
+      // --- handleWInteraction ---
+      const origWInteraction = TitleEngine.handleWInteraction.bind(TitleEngine);
+      TitleEngine.handleWInteraction = (letter, yCanvas, fontSize) => {
+        const wasInFall = letter.anim.mode === 'fall';
+        const p = (performance.now() - letter.anim.start) / 1000;
+        const isClickingBackUp = wasInFall && p >= 1.0 && p <= 2.4;
+        origWInteraction(letter, yCanvas, fontSize);
+        if (isClickingBackUp) {
+          setTimeout(() => SoundEngine.play('w_land', 0.3, 0.88), 600);
+        }
+      };
+
       // --- shakeScreen ---
+      // Called by both w landing and p explosion — detect which by checking w mode
       const origShake = TitleEngine.shakeScreen.bind(TitleEngine);
       TitleEngine.shakeScreen = () => {
-        SoundEngine.play('shake', 0.7);
+        const wIsFalling = TitleEngine.interactiveLetters.some(l => l.char === 'w' && (l.anim.mode === 'fall' || l.anim.mode === 'reverse'));
+        if (wIsFalling) {
+          SoundEngine.play('w_land', 0.3, 1.15);
+        } else {
+          SoundEngine.play('shake', 0.25);
+        }
         origShake();
       };
 
