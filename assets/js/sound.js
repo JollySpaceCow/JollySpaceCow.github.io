@@ -35,6 +35,12 @@ const SoundEngine = {
     shake:     'Unknown_Sound_SeResourceStdSystem_00000133.ogg',
     moo:       'Moo.mp3',
     vineboom:  'vineboom.mp3',
+
+    fin_head:  'Unknown_Sound_SeResourceStd2nd_00000836.ogg',
+    fin_mid:   'Plop_SeResourceStd2nd_00000273.ogg',
+    fin_legs:  'Plop_SeResourceStd2nd_00000837.ogg',
+    fin_fall:  'Sound_effect_SeResourceStd2nd_00001033.ogg',
+    fin_land:  'Bang_SeResourceStd2nd_00001014.ogg',
   },
 
   init() {
@@ -50,6 +56,7 @@ const SoundEngine = {
     window.addEventListener('keydown', unlock);
 
     this.patchTitleEngine();
+    this.patchMrFinance();
     console.log('🔊 Sound Engine Initialized');
   },
 
@@ -131,6 +138,51 @@ const SoundEngine = {
       this.oSpinNodes.gain.disconnect();
     } catch (_) {}
     this.oSpinNodes = null;
+  },
+
+  // --- Mr Finance sounds ---
+  // npc.js drives animations by setting the `animation-name` attribute on the
+  // model-viewer element. We don't touch npc.js — just watch that attribute.
+  patchMrFinance() {
+    let finEl = null;
+    let lastAnim = null;
+
+    const animSoundMap = {
+      'Receiving An Uppercut': () => SoundEngine.play('fin_head', 0.35),
+      'Kidney Hit':            () => SoundEngine.play('fin_mid', 0.35),
+      'Sweep Fall':            () => {
+        SoundEngine.play('fin_legs', 0.35);
+        // npc.js switches to falling_through 1500ms after Sweep Fall,
+        // but doesn't update animation-name when it does — so we schedule
+        // the fall sound to match that fixed delay.
+        setTimeout(() => SoundEngine.play('fin_fall', 0.3), 1500);
+      },
+      'Falling':               () => SoundEngine.play('fin_fall', 0.3),
+      'Falling Flat Impact':   () => SoundEngine.play('fin_land', 0.35),
+    };
+
+    const watchAttr = (el) => {
+      const obs = new MutationObserver(() => {
+        const anim = el.getAttribute('animation-name');
+        if (anim !== lastAnim) {
+          lastAnim = anim;
+          if (animSoundMap[anim]) animSoundMap[anim]();
+        }
+      });
+      obs.observe(el, { attributes: true, attributeFilter: ['animation-name'] });
+    };
+
+    // Watch for the model-viewer being added to the page (MrFinance.spawn())
+    const bodyObs = new MutationObserver(() => {
+      if (finEl) return;
+      const el = document.querySelector('model-viewer[src*="FinanCharacter"]');
+      if (el) {
+        finEl = el;
+        lastAnim = el.getAttribute('animation-name');
+        watchAttr(el);
+      }
+    });
+    bodyObs.observe(document.body, { childList: true, subtree: true });
   },
 
   patchTitleEngine() {
