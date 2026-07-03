@@ -44,16 +44,17 @@ const SoundEngine = {
   },
 
   init() {
-    const unlock = () => {
-      if (this.unlocked) return;
-      this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-      this.unlocked = true;
-      this.preload();
-      window.removeEventListener('click', unlock);
-      window.removeEventListener('keydown', unlock);
+    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    this.unlocked = true;
+    this.preload();
+
+    const resume = () => {
+      if (this.ctx.state === 'suspended') this.ctx.resume();
     };
-    window.addEventListener('click', unlock);
-    window.addEventListener('keydown', unlock);
+    window.addEventListener('click', resume);
+    window.addEventListener('keydown', resume);
+    window.addEventListener('pointerdown', resume);
+    document.addEventListener('pointerdown', resume, true);
 
     this.patchTitleEngine();
     this.patchMrFinance();
@@ -77,6 +78,7 @@ const SoundEngine = {
 
   play(key, volume = 1.0, pitch = 1.0) {
     if (!this.ctx || !this.buffers[key]) return;
+    if (this.ctx.state === 'suspended') this.ctx.resume();
     const source = this.ctx.createBufferSource();
     source.buffer = this.buffers[key];
     source.playbackRate.value = pitch;
@@ -88,9 +90,9 @@ const SoundEngine = {
   },
 
   // --- Procedural O spin sound ---
-  // Drives an oscillator whose frequency and volume track oSwapState.omega
   startOSpin() {
     if (!this.ctx) return;
+    if (this.ctx.state === 'suspended') this.ctx.resume();
     this.stopOSpin();
 
     const osc = this.ctx.createOscillator();
@@ -116,8 +118,7 @@ const SoundEngine = {
         return;
       }
 
-      const omega = Math.abs(state.omega); // rad/s, starts ~6.8, decays to 0
-      // Map omega (0–12) → freq (120–900 Hz) and volume (0–0.2)
+      const omega = Math.abs(state.omega);
       const freq = 120 + (omega / 12) * 780;
       const vol  = Math.min(omega / 12, 1) * 0.2;
 
@@ -141,8 +142,6 @@ const SoundEngine = {
   },
 
   // --- Mr Finance sounds ---
-  // npc.js drives animations by setting the `animation-name` attribute on the
-  // model-viewer element. We don't touch npc.js — just watch that attribute.
   patchMrFinance() {
     let finEl = null;
     let lastAnim = null;
@@ -152,9 +151,6 @@ const SoundEngine = {
       'Kidney Hit':            () => SoundEngine.play('fin_mid', 0.35),
       'Sweep Fall':            () => {
         SoundEngine.play('fin_legs', 0.35);
-        // npc.js switches to falling_through 1500ms after Sweep Fall,
-        // but doesn't update animation-name when it does — so we schedule
-        // the fall sound to match that fixed delay.
         setTimeout(() => SoundEngine.play('fin_fall', 0.3), 1500);
       },
       'Falling':               () => SoundEngine.play('fin_fall', 0.3),
@@ -172,7 +168,6 @@ const SoundEngine = {
       obs.observe(el, { attributes: true, attributeFilter: ['animation-name'] });
     };
 
-    // Watch for the model-viewer being added to the page (MrFinance.spawn())
     const bodyObs = new MutationObserver(() => {
       if (finEl) return;
       const el = document.querySelector('model-viewer[src*="FinanCharacter"]');
@@ -201,7 +196,31 @@ const SoundEngine = {
           SoundEngine.play('J', 0.3, pitch);
 
         } else if (char === 'w') {
-          // Sound plays on landing via shakeScreen patch, not on click
+          // No sound on click itself — crash-down and return-up sounds play
+          // via the shakeScreen patch below, at the exact moment each happens.
+          // Additionally: if this click starts a fresh fall (idle → fall) and
+          // it's never clicked again, title-engine.js silently snaps it back
+          // to idle with no animation or sound. Rather than guess the timing
+          // with a setTimeout (unreliable — the rAF loop can push our timer
+          // past the real reset), we poll every frame and catch the actual
+          // fall → idle transition the instant it happens.
+          if (letter.anim.mode === 'idle') {
+            const watch = () => {
+              const m = letter.anim.mode;
+              if (m === 'reverse') return; // clicked again — handled by shakeScreen instead
+              if (m !== 'fall') return; // safety bail
+              const elapsed = (performance.now() - letter.anim.start) / 1000;
+              // 2.4s is when title-engine.js starts the shrink/flip/reappear
+              // visual (durations 2.4→3.1s) before finally setting mode idle.
+              // Fire right as that visual starts, not when it finishes.
+              if (elapsed >= 2.4) {
+                SoundEngine.play('S', 0.3);
+                return;
+              }
+              requestAnimationFrame(watch);
+            };
+            requestAnimationFrame(watch);
+          }
 
         } else if (char === 'p' && idx === 7) {
           const inPhysics = TitleEngine.interactiveLetters.some(l => l.anim.mode === 'physics');
@@ -234,25 +253,18 @@ const SoundEngine = {
         origTrigger(letter, yBase, fontSize);
       };
 
-      // --- handleWInteraction ---
-      const origWInteraction = TitleEngine.handleWInteraction.bind(TitleEngine);
-      TitleEngine.handleWInteraction = (letter, yCanvas, fontSize) => {
-        const wasInFall = letter.anim.mode === 'fall';
-        const p = (performance.now() - letter.anim.start) / 1000;
-        const isClickingBackUp = wasInFall && p >= 1.0 && p <= 2.4;
-        origWInteraction(letter, yCanvas, fontSize);
-        if (isClickingBackUp) {
-          setTimeout(() => SoundEngine.play('w_land', 0.3, 0.88), 600);
-        }
-      };
-
       // --- shakeScreen ---
-      // Called by both w landing and p explosion — detect which by checking w mode
+      // title-engine.js calls this both when w hits the ground (mode 'fall')
+      // and when w arrives back home (mode 'reverse') — same 600ms delay
+      // in both cases. Play the identical bang, same pitch, for both.
       const origShake = TitleEngine.shakeScreen.bind(TitleEngine);
       TitleEngine.shakeScreen = () => {
-        const wIsFalling = TitleEngine.interactiveLetters.some(l => l.char === 'w' && (l.anim.mode === 'fall' || l.anim.mode === 'reverse'));
-        if (wIsFalling) {
+        const wFalling   = TitleEngine.interactiveLetters.some(l => l.char === 'w' && l.anim.mode === 'fall');
+        const wReturning = TitleEngine.interactiveLetters.some(l => l.char === 'w' && l.anim.mode === 'reverse');
+        if (wFalling) {
           SoundEngine.play('w_land', 0.3, 1.15);
+        } else if (wReturning) {
+          SoundEngine.play('w_land', 0.3, 0.85);
         } else {
           SoundEngine.play('shake', 0.25);
         }
