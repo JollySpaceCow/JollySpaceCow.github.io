@@ -1,7 +1,17 @@
 // Jolly Space Cow — Service Worker
 // Caches the site for offline use and serves a fun offline page when disconnected
+//
+// ─── UPDATING THE CACHE ────────────────────────────────────────────────────────
+// When any site file changes, bump CACHE_NAME to today's date (AEST/ACST):
+//
+//   Format : 'jsc-YYYY-MM-DD'
+//   Example: 'jsc-2026-07-04'
+//
+// This is the ONLY value that needs to change. The old cache is automatically
+// deleted on activate and all pages/assets are re-fetched on next visit.
+// ───────────────────────────────────────────────────────────────────────────────
 
-const CACHE_NAME = 'jsc-2026-06-27-v6'; // Precache only troll.js
+const CACHE_NAME = 'jsc-2026-07-04';
 
 const PRECACHE_URLS = [
   './',

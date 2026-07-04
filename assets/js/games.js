@@ -14,46 +14,163 @@
       this.initScrubbers();
     },
 
-    /* ── WIDE = WISE ── */
+    /* ── WIDE = WISE (TOBLE EFFECT) ── */
+    /* Credit: Adapted from the Toble slinky effect on onemillionpats.com featuring Tofu Chan */
     initWideGame() {
-      let scale = 1.0;
-      const wisdomWords = [
-        'Expand its wisdom.', 'A little wide.', 'Getting there.', 'Notable width.',
-        'Considerable wisdom.', 'Very wide. Very wise.', 'The cat knows things.',
-        'Almost too wise.', 'Dangerously wide.', 'Maximum wisdom achieved.',
-        'Beyond wisdom.', 'Everything.'
-      ];
+      const container = document.getElementById('toble-container');
+      if (!container) return;
 
-      const valEl = document.getElementById('wisdom-val');
-      const msgEl = document.getElementById('wide-msg');
-      const img = document.getElementById('wide-cat-img');
-      const fb = document.getElementById('wide-fallback');
-      const wrap = document.querySelector('.wide-cat-wrap');
-      const resetBtn = document.querySelector('.btn-ghost');
+      const NUM_CIRCLES = 180;
+      const MAX_RADIUS = 180;
+      const FRICTION = 0.98;
+      const SPEED_DIVISOR = 150;
+      const WEIGHT_1 = 7.0;
+      const WEIGHT_2 = 4.0;
 
-      if (!wrap) return;
+      let loader;
+      let imgTexture;
+      let stage;
+      let target;
+      let renderer;
+      let mouseDown = false;
+      const circles = [];
+      let sw = container.clientWidth || 400;
+      let sh = container.clientHeight || 400;
+      let mouseX = 0;
+      let mouseY = 0;
 
-      const update = () => {
-        const pct = Math.round((scale - 1) / 3.5 * 100);
-        if (img) img.style.transform = `scaleX(${scale})`;
-        if (fb) fb.style.transform = `scaleX(${scale})`;
-        if (valEl) valEl.textContent = pct + '%';
-        const idx = Math.min(Math.floor(pct / 10), wisdomWords.length - 1);
-        if (msgEl) msgEl.textContent = wisdomWords[idx];
+      const mapVal = (val, in_min, in_max, out_min, out_max) => {
+        return in_min === in_max ? out_min : (val - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
       };
 
-      wrap.addEventListener('click', () => {
-        scale = Math.min(scale + 0.12, 4.5);
-        update();
-      });
+      const resizeIt = () => {
+        sw = container.clientWidth;
+        sh = container.clientHeight;
+        if (renderer) {
+          renderer.resize(sw, sh);
+          if (stage) {
+            stage.hitArea = new PIXI.Rectangle(0, 0, sw, sh);
+          }
+        }
+        if (target) {
+          target.position.x = sw / 2;
+          target.position.y = sh / 2;
+        }
+      };
 
-      if (resetBtn) {
-        resetBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          scale = 1.0;
-          update();
-        });
-      }
+      let lastTime = null;
+      const TARGET_FPS = 60;
+      const TARGET_FRAME_MS = 1000 / TARGET_FPS;
+
+      const animate = (now) => {
+        if (lastTime === null) lastTime = now;
+        const delta = Math.min(now - lastTime, 50); // cap at 50ms to avoid huge jumps
+        const factor = delta / TARGET_FRAME_MS;
+        lastTime = now;
+
+        for (let i = circles.length - 1; i >= 0; i--) {
+          const circle = circles[i];
+          circle.distX = Math.floor(circle.position.x - mouseX);
+          circle.distY = Math.floor(circle.position.y - mouseY);
+          circle.speedX += (circle.distX / SPEED_DIVISOR) * factor;
+          circle.speedY += (circle.distY / SPEED_DIVISOR) * factor;
+          circle.position.x -= circle.speedX * circle.weight * factor;
+          circle.position.y -= circle.speedY * circle.weight * factor;
+          circle.speedX *= Math.pow(FRICTION, factor);
+          circle.speedY *= Math.pow(FRICTION, factor);
+        }
+        if (renderer && stage) {
+          renderer.render(stage);
+        }
+        requestAnimationFrame(animate);
+      };
+
+      const addCircles = () => {
+        imgTexture = PIXI.utils.TextureCache['assets/images/Amber.webp'];
+        if (!imgTexture) return;
+
+        for (let i = 0; i < NUM_CIRCLES; i++) {
+          const radius = mapVal(i, 0, NUM_CIRCLES - 1, MAX_RADIUS, 12);
+          const circleContainer = new PIXI.Container();
+          const sprite = new PIXI.Sprite(imgTexture);
+          sprite.anchor.x = sprite.anchor.y = 0.5;
+          // All sprites scale to fill the largest circle — the mask handles the crop
+          const fillDiameter = MAX_RADIUS * 2;
+          const scale = fillDiameter / Math.min(imgTexture.width, imgTexture.height);
+          sprite.scale.set(scale);
+          circleContainer.addChild(sprite);
+
+          const maskGraphics = new PIXI.Graphics();
+          maskGraphics.beginFill(0xff0000);
+          maskGraphics.drawCircle(0, 0, radius);
+          maskGraphics.endFill();
+          circleContainer.addChild(maskGraphics);
+          sprite.mask = maskGraphics;
+
+          circleContainer.speedX = 0;
+          circleContainer.speedY = 0;
+          circleContainer.distX = 0;
+          circleContainer.distY = 0;
+          circleContainer.weight = mapVal(i, 0, NUM_CIRCLES - 1, WEIGHT_1, WEIGHT_2);
+          circleContainer.cacheAsBitmap = true;
+
+          circles.push(circleContainer);
+          target.addChild(circleContainer);
+        }
+        requestAnimationFrame(animate);
+      };
+
+      const onMouseDown = (e) => {
+        mouseDown = true;
+        container.style.cursor = 'grabbing';
+        const localPos = e.data.getLocalPosition(stage);
+        mouseX = localPos.x - sw / 2;
+        mouseY = localPos.y - sh / 2;
+      };
+
+      const onMouseMove = (e) => {
+        if (mouseDown) {
+          const localPos = e.data.getLocalPosition(stage);
+          mouseX = localPos.x - sw / 2;
+          mouseY = localPos.y - sh / 2;
+        }
+      };
+
+      const onMouseUp = () => {
+        mouseDown = false;
+        container.style.cursor = 'grab';
+      };
+
+      // Initialise PixiJS stage & renderer
+      stage = new PIXI.Container();
+      renderer = PIXI.autoDetectRenderer(sw, sh, { transparent: true });
+      renderer.view.style.display = 'block';
+      renderer.view.style.width = '100%';
+      renderer.view.style.height = '100%';
+      
+      container.appendChild(renderer.view);
+
+      stage.on('mousedown', onMouseDown);
+      stage.on('touchstart', onMouseDown);
+      stage.on('mousemove', onMouseMove);
+      stage.on('touchmove', onMouseMove);
+      stage.on('mouseup', onMouseUp);
+      stage.on('touchend', onMouseUp);
+      stage.interactive = true;
+      stage.hitArea = new PIXI.Rectangle(0, 0, sw, sh);
+
+      target = new PIXI.Container();
+      target.position.x = sw / 2;
+      target.position.y = sh / 2;
+      stage.addChild(target);
+
+      window.addEventListener('resize', resizeIt);
+      resizeIt();
+
+      loader = new PIXI.loaders.Loader();
+      loader.add('assets/images/Amber.webp', 'assets/images/Amber.webp');
+      loader.once('complete', addCircles);
+      loader.load();
     },
 
     /* ── SCRUBBERS ── */

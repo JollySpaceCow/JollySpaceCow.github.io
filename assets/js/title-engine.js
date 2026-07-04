@@ -20,6 +20,10 @@ const TitleEngine = {
   yClickCount: 0,
   currentHue: 0,
 
+  // --- Jelly Easter Egg ---
+  jellyMode: false,       // True once the jelly easter egg is activated
+  jellyTint: 0,           // 0→1 blend of jelly green overlay (animates in)
+
   // --- Configuration ---
   config: {
     physics: {
@@ -276,10 +280,16 @@ const TitleEngine = {
       this.playTransition = target;
     }
 
+    // Animate jelly tint blend-in (0 → 1 over ~0.8s)
+    if (this.jellyMode && this.jellyTint < 1) {
+      this.jellyTint = Math.min(1, this.jellyTint + 0.016);
+    }
+
     const { gl, timeLoc, resLoc, hueLoc } = webgl;
     gl.uniform1f(timeLoc, this.accumulatedTime * 0.001);
     gl.uniform2f(resLoc, webgl.canvas.width, rect.height * dpr * 0.5); 
-    gl.uniform1f(hueLoc, this.currentHue); 
+    // Jelly mode: shift hue toward green (~2.1 rad)
+    gl.uniform1f(hueLoc, this.jellyMode ? 2.1 + Math.sin(this.accumulatedTime * 0.001) * 0.15 : this.currentHue); 
     gl.drawArrays(gl.TRIANGLES, 0, 6);
     
     // 2. Text Rendering
@@ -582,6 +592,24 @@ const TitleEngine = {
         state.x += anim.px; state.y += anim.py; state.rot = anim.prot;
         break;
 
+      case 'jelly': {
+        // Jelly physics: falls with gravity and bounces with a pronounced wobbly squish.
+        // Uses the same physics engine but overlays a continuous jelly wobble on top.
+        this.updatePhysics(letter, dt, floor, yBase);
+        state.x += anim.px;
+        state.y += anim.py;
+        state.rot = anim.prot * 0.5; // Reduce rotation — jelly wobbles rather than spins
+
+        // Persistent jelly wobble: sinusoidal squish driven by time + per-letter phase offset
+        const jellyAge = (performance.now() - anim.jellyStart) / 1000;
+        const wobbleFreq = 3.5 + (letter.index % 3) * 0.4;
+        const wobbleDecay = Math.max(0.15, 1.0 - jellyAge * 0.12);
+        const wobble = Math.sin(jellyAge * wobbleFreq * Math.PI * 2 + anim.jellyPhase) * 0.22 * wobbleDecay;
+        state.scaleX = 1.0 + wobble;
+        state.scaleY = 1.0 - wobble * 0.8;
+        break;
+      }
+
       case 'flip_return':
         const { flipShrink, flipPause, flipGrow } = durs;
         if (p <= flipShrink) {
@@ -631,6 +659,74 @@ const TitleEngine = {
         state.scaleY = pScale;
         state.z = z;
         state.shadow = z > 0 ? Math.abs(Math.sin(swapState.theta)) : 0;
+        break;
+      }
+
+      case 'squishMorph': {
+        const squishDuration = 0.45; // Time to perform the squish morph
+        const stayDuration = 3.0;    // Time it stays as an unsquished 'e'
+        const unsquishDuration = 0.45; // Time to perform the unsquish morph back to 'o'
+        const totalDuration = squishDuration + stayDuration + unsquishDuration;
+
+        // Helper to evaluate keyframe-based scale values matching the CSS squishMorph keyframes:
+        // 0%   -> scaleX(1.0), scaleY(1.0)
+        // 30%  -> scaleX(1.5), scaleY(0.6)
+        // 55%  -> scaleX(0.8), scaleY(1.2)
+        // 75%  -> scaleX(1.1), scaleY(0.95)
+        // 100% -> scaleX(1.0), scaleY(1.0)
+        const getSquishScales = (t) => {
+          let sx = 1.0, sy = 1.0;
+          if (t <= 0.3) {
+            const p = t / 0.3;
+            sx = 1.0 + 0.5 * p;
+            sy = 1.0 - 0.4 * p;
+          } else if (t <= 0.55) {
+            const p = (t - 0.3) / 0.25;
+            sx = 1.5 - 0.7 * p;
+            sy = 0.6 + 0.6 * p;
+          } else if (t <= 0.75) {
+            const p = (t - 0.55) / 0.2;
+            sx = 0.8 + 0.3 * p;
+            sy = 1.2 - 0.25 * p;
+          } else {
+            const p = (t - 0.75) / 0.25;
+            sx = 1.1 - 0.1 * p;
+            sy = 0.95 + 0.05 * p;
+          }
+          return { sx, sy };
+        };
+
+        if (p <= totalDuration) {
+          if (p <= squishDuration) {
+            // Phase 1: Squishing and morphing 'o' -> 'e'
+            const t = p / squishDuration;
+            // Swap character at the peak squish (t = 0.3 matches the 30% CSS keyframe)
+            if (t >= 0.3) {
+              letter.char = 'e';
+            }
+            const scales = getSquishScales(t);
+            state.scaleX = scales.sx;
+            state.scaleY = scales.sy;
+          } else if (p <= squishDuration + stayDuration) {
+            // Phase 2: Stays as a normal 'e'
+            letter.char = 'e';
+            state.scaleX = 1;
+            state.scaleY = 1;
+          } else {
+            // Phase 3: Unsquishing and morphing 'e' -> 'o'
+            const t = (p - squishDuration - stayDuration) / unsquishDuration;
+            // Swap character back at the peak squish (t = 0.3 matches the 30% CSS keyframe)
+            if (t >= 0.3) {
+              letter.char = 'o';
+            }
+            const scales = getSquishScales(t);
+            state.scaleX = scales.sx;
+            state.scaleY = scales.sy;
+          }
+        } else {
+          letter.char = 'o';
+          anim.mode = 'idle';
+        }
         break;
       }
 
@@ -919,7 +1015,67 @@ const TitleEngine = {
       this.handleStarfieldToggle(letter);
     } else if (letter.char === 'S') {
       this.handleSInteraction(letter, yBase, fontSize);
+    } else if (letter.char === 'e' && letter.index === 10) {
+      this.handleEInteraction();
     }
+  },
+
+  /**
+   * Handles clicks on the 'e' letter (index 10, in 'Space').
+   * First click: triggers the 'o' → 'e' squish morph on the 'J[o]lly' letter.
+   * Second click (while 'o' is showing as 'e'): triggers the jelly easter egg!
+   */
+  handleEInteraction() {
+    if (this.jellyMode) return; // Already in jelly mode
+
+    const o1 = this.interactiveLetters[1]; // The 'o' in 'Jolly'
+    
+    // If the 'o' in Jolly is currently showing as an 'e' (squish morph in progress),
+    // this second click on the 'e' in Space triggers JELLY MODE!
+    if (o1 && o1.char === 'e') {
+      this.triggerJellyMode();
+      return;
+    }
+
+    // Otherwise: first click — trigger the squish morph on 'o' → 'e'
+    if (!o1 || o1.anim.mode !== 'idle') return;
+    o1.anim.mode = 'squishMorph';
+    o1.anim.start = performance.now();
+  },
+
+  /**
+   * Triggers jelly mode: all letters fall with wobbly jelly physics and a green tint.
+   */
+  triggerJellyMode() {
+    if (this.jellyMode) return;
+    this.jellyMode = true;
+    this.jellyTint = 0;
+
+    const dpr = this.metrics.dpr;
+    const now = performance.now();
+
+    this.interactiveLetters.forEach((letter, i) => {
+      // Stagger the launch slightly so they cascade like falling jelly blobs
+      const delay = i * 45;
+      setTimeout(() => {
+        letter.anim.mode = 'jelly';
+        letter.anim.start = now;
+        letter.anim.jellyStart = now;
+        letter.anim.jellyPhase = Math.random() * Math.PI * 2; // Random wobble phase per letter
+        // Give each letter a gentle random lateral shove so they spread out
+        const angle = -Math.PI / 2 + (Math.random() - 0.5) * 1.2;
+        const speed = (200 + Math.random() * 400) * dpr;
+        letter.anim.vx = Math.cos(angle) * speed;
+        letter.anim.vy = Math.sin(angle) * speed;
+        letter.anim.vrot = (Math.random() - 0.5) * 8;
+        letter.anim.px = 0;
+        letter.anim.py = 0;
+        letter.anim.prot = 0;
+        letter.anim.stagnantSince = null;
+      }, delay);
+    });
+
+    console.log('🟢 Jelly Mode Activated! Everything is jelly now!');
   },
 
   handleStarfieldToggle(letter) {

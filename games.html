@@ -52,26 +52,18 @@
         </div>
       </article>
 
-      <!-- GAME 2: Wide = Wise -->
-      <article class="game-box">
+      <!-- GAME 2: Toble (Wide = Wise) -->
+      <!-- Credit: Adapted from the Toble slinky effect on onemillionpats.com featuring Tofu Chan -->
+      <article class="game-box" id="toble-game">
         <header class="game-header">
-          <p class="game-title">Wide = Wise</p>
-          <p class="game-desc">The wider the cat, the greater the wisdom. Science has proven it.</p>
+          <p class="game-title">Toble (Wide = Wise)</p>
+          <p class="game-desc">The longer the dog, the greater the wisdom. Click and drag to stretch.</p>
         </header>
-        <div class="game-arena">
-          <div class="game-stat">
-            <div class="game-val wisdom-display" id="wisdom-val">0%</div>
-            <div class="game-label">wisdom level</div>
-          </div>
-
-          <div class="wide-cat-wrap">
-            <img src="images/cat.jpg" alt="cat" id="wide-cat-img" class="wide-cat" onerror="this.style.display='none';document.getElementById('wide-fallback').style.display='flex'">
-            <div class="cat-placeholder" id="wide-fallback" style="display:none;border-radius:16px;width:180px;height:180px;">🐱</div>
-          </div>
-
-          <div style="display:flex; gap:0.75rem; align-items:center;">
-            <button class="btn btn-ghost" style="padding: 0.4rem 0.8rem; font-size: 12px;">↺ Reset</button>
-            <p class="game-msg" id="wide-msg">Expand its wisdom.</p>
+        <div class="game-arena" style="padding: 0; flex: 1; display: flex; flex-direction: column;">
+          <div id="toble-container" style="flex: 1; min-height: 400px; position: relative; overflow: hidden; background: #000; display: flex; align-items: center; justify-content: center; cursor: grab;"></div>
+          <div class="scrub-info" style="background: var(--bg-2); border-top: 1px solid var(--border); padding: 1rem 1.25rem; display: flex; align-items: center; justify-content: space-between;">
+            <span class="scrub-title">Amber</span>
+            <span class="scrub-hint">← click & drag to stretch →</span>
           </div>
         </div>
       </article>
@@ -83,6 +75,7 @@
 </div>
 
 <script src="assets/js/cursor.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/4.3.4/pixi.min.js"></script>
 <script src="assets/js/games.js"></script>
 <script src="assets/js/app.js"></script>
 </body>
