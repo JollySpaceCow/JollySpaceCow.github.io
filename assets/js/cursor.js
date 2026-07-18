@@ -1,4 +1,8 @@
 (function() {
+  // Cursor trail is mouse-only — skip entirely on touch/mobile devices to save CPU.
+  const isTouchDevice = navigator.maxTouchPoints > 0 && window.innerWidth < 1024;
+  if (isTouchDevice) return;
+
   // Cursor elements are created programmatically to keep HTML clean
   const dot = document.createElement('div');
   dot.className = 'cursor-dot';

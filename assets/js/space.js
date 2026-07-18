@@ -3,13 +3,30 @@
 (function() {
   const cv = document.getElementById('space-canvas');
   if (!cv) return;
-  const cx = cv.getContext('2d', { alpha: false }); // Optimization
+  const cx = cv.getContext('2d', { alpha: false }); // Optimisation: no alpha compositing
   let W, H, stars = [], mouse = { x: 0.5, y: 0.5 }, smoothMouse = { x: 0.5, y: 0.5 };
+
+  // --- Offscreen caches for nebulae and mouse glow ---
+  // Nebulae are slow to redraw (radial gradients); render at low-res and stretch to fill.
+  const nebOffscreen = document.createElement('canvas');
+  const nebCtx = nebOffscreen.getContext('2d');
+  const NEBULA_SCALE = 0.15; // 15% of screen resolution — smooth blobs need no detail
+
+  // Mouse glow is a fixed radial gradient; bake it once into a tiny canvas.
+  const glowOffscreen = document.createElement('canvas');
+  glowOffscreen.width = 64; glowOffscreen.height = 64;
+  const glowCtx = glowOffscreen.getContext('2d');
+  const glowGr = glowCtx.createRadialGradient(32, 32, 0, 32, 32, 32);
+  glowGr.addColorStop(0, 'rgba(200,169,110,0.03)');
+  glowGr.addColorStop(1, 'transparent');
+  glowCtx.fillStyle = glowGr;
+  glowCtx.fillRect(0, 0, 64, 64);
 
   function resize() {
     W = cv.width = window.innerWidth;
     H = cv.height = window.innerHeight;
-    initStars(300); // Reduced star count slightly for better perf
+    initStars(300); // Reduced star count for better perf
+    buildNebulaCache(); // Bake static nebulae and Milky Way onto offscreen canvas
   }
 
   function mkStar() {
@@ -30,49 +47,74 @@
     stars = Array.from({ length: n }, () => mkStar());
   }
 
-  function drawMilkyWay() {
-    const cy2 = H * 0.48;
-    const gr = cx.createLinearGradient(0, cy2 - H * 0.15, 0, cy2 + H * 0.15);
-    gr.addColorStop(0, 'transparent');
-    gr.addColorStop(0.5, 'rgba(160,180,255,0.015)'); // Subtle
-    gr.addColorStop(1, 'transparent');
-    cx.save();
-    cx.translate(W * 0.5, cy2);
-    cx.rotate(-0.18);
-    cx.fillStyle = gr;
-    cx.fillRect(-W * 0.8, -H * 0.15, W * 1.6, H * 0.3);
-    cx.restore();
-  }
-
   const nebulae = [
     { x: 0.15, y: 0.25, r: 0.22, h: 220, o: 0.03 },
-    { x: 0.82, y: 0.55, r: 0.2, h: 260, o: 0.025 },
+    { x: 0.82, y: 0.55, r: 0.2,  h: 260, o: 0.025 },
     { x: 0.48, y: 0.78, r: 0.18, h: 195, o: 0.02 },
-    { x: 0.68, y: 0.18, r: 0.15, h: 30, o: 0.02 },
+    { x: 0.68, y: 0.18, r: 0.15, h: 30,  o: 0.02 },
   ];
 
-  function drawNebulae(t) {
-    const maxDim = Math.max(W, H);
+  /**
+   * Bakes the Milky Way band and all four nebulae onto a small offscreen canvas
+   * once per resize. In the render loop we just drawImage() this cache.
+   * This eliminates four radial gradient + one linear gradient construction per frame.
+   */
+  function buildNebulaCache() {
+    const nW = Math.ceil(W * NEBULA_SCALE);
+    const nH = Math.ceil(H * NEBULA_SCALE);
+    nebOffscreen.width = nW;
+    nebOffscreen.height = nH;
+    nebCtx.clearRect(0, 0, nW, nH);
+
+    // --- Milky Way band ---
+    const cy2 = nH * 0.48;
+    const milkyGr = nebCtx.createLinearGradient(0, cy2 - nH * 0.15, 0, cy2 + nH * 0.15);
+    milkyGr.addColorStop(0, 'transparent');
+    milkyGr.addColorStop(0.5, 'rgba(160,180,255,0.015)');
+    milkyGr.addColorStop(1, 'transparent');
+    nebCtx.save();
+    nebCtx.translate(nW * 0.5, cy2);
+    nebCtx.rotate(-0.18);
+    nebCtx.fillStyle = milkyGr;
+    nebCtx.fillRect(-nW * 0.8, -nH * 0.15, nW * 1.6, nH * 0.3);
+    nebCtx.restore();
+
+    // --- Nebulae at their home positions (no time offset — drift is applied on draw) ---
+    const maxDim = Math.max(nW, nH);
     for (let i = 0; i < nebulae.length; i++) {
       const b = nebulae[i];
-      const px = (b.x + Math.sin(t * 0.0002 + b.h) * 0.01) * W;
-      const py = (b.y + Math.cos(t * 0.00025 + b.h) * 0.01) * H;
+      const px = b.x * nW;
+      const py = b.y * nH;
       const radius = b.r * maxDim;
-      
-      const gr = cx.createRadialGradient(px, py, 0, px, py, radius);
+      const gr = nebCtx.createRadialGradient(px, py, 0, px, py, radius);
       gr.addColorStop(0, `hsla(${b.h},60%,60%,${b.o})`);
       gr.addColorStop(1, 'transparent');
-      cx.fillStyle = gr;
-      cx.fillRect(px - radius, py - radius, radius * 2, radius * 2);
+      nebCtx.fillStyle = gr;
+      nebCtx.fillRect(px - radius, py - radius, radius * 2, radius * 2);
     }
   }
 
+  /**
+   * Draws the pre-baked nebula cache with a tiny time-driven positional offset
+   * on each nebula, giving the illusion of organic drift without rebuilding gradients.
+   * We achieve this by drawing the full offscreen canvas with a very slight translate.
+   */
+  function drawNebulaCache(t) {
+    // Apply a gentle screen-space drift (≤ 1% of screen) via canvas transform
+    const driftX = Math.sin(t * 0.0002) * W * 0.005;
+    const driftY = Math.cos(t * 0.00025) * H * 0.005;
+    cx.save();
+    cx.translate(driftX, driftY);
+    cx.drawImage(nebOffscreen, 0, 0, W, H);
+    cx.restore();
+  }
+
+  /** Draws a soft golden radial glow at the current (smoothed) mouse position. */
   function drawMouseGlow() {
     const px = smoothMouse.x * W, py = smoothMouse.y * H;
-    const gr = cx.createRadialGradient(px, py, 0, px, py, 250);
-    gr.addColorStop(0, 'rgba(200,169,110,0.03)');
-    gr.addColorStop(1, 'transparent');
-    cx.fillStyle = gr; cx.fillRect(px - 250, py - 250, 500, 500);
+    const SIZE = 500;
+    // Draw the pre-baked 64×64 glow canvas stretched to 500×500 at the mouse position
+    cx.drawImage(glowOffscreen, px - SIZE / 2, py - SIZE / 2, SIZE, SIZE);
   }
 
   let shoot = null, shootStart = 0;
@@ -114,8 +156,7 @@
     smoothMouse.x += (mouse.x - smoothMouse.x) * 0.05;
     smoothMouse.y += (mouse.y - smoothMouse.y) * 0.05;
 
-    drawMilkyWay();
-    drawNebulae(accumulatedTime);
+    drawNebulaCache(accumulatedTime);
     drawMouseGlow();
 
     const mode = window.starfieldMode || 0;
@@ -169,11 +210,8 @@
         cx.stroke();
       } else {
         cx.fillStyle = col;
-        if (s.r > 1.1) {
-          cx.beginPath(); cx.arc(px, py, s.r, 0, Math.PI * 2); cx.fill();
-        } else {
-          cx.fillRect(px - s.r, py - s.r, s.r * 2, s.r * 2);
-        }
+        // Use fillRect for all stars — avoids expensive path/arc construction per star
+        cx.fillRect(px - s.r, py - s.r, s.r * 2, s.r * 2);
         
         s.x -= (s.r * 0.2 + 0.05);
         if (s.x < -20) { s.x = W + 20; s.y = Math.random() * H; }

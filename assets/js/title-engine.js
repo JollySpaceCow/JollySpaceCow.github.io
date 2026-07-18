@@ -132,6 +132,7 @@ const TitleEngine = {
       }
     `;
 
+
     const compile = (type, src) => {
       const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); return s;
     };
@@ -185,9 +186,16 @@ const TitleEngine = {
       const x = tempCtx.measureText(text.substring(0, i)).width;
       const nextX = tempCtx.measureText(text.substring(0, i + 1)).width;
       const charWidth = nextX - x - spacingPx;
-      const existing = oldLetters[i] && oldLetters[i].char === char ? oldLetters[i].anim : { mode: 'idle', start: 0 };
+      
+      const isOorEMorph = (i === 1) && oldLetters[i] && (
+        (char.toLowerCase() === 'o' && oldLetters[i].char.toLowerCase() === 'e') ||
+        (char.toLowerCase() === 'e' && oldLetters[i].char.toLowerCase() === 'o')
+      );
+      
+      const existing = oldLetters[i] && (oldLetters[i].char === char || isOorEMorph) ? oldLetters[i].anim : { mode: 'idle', start: 0 };
+      const currentChar = (isOorEMorph) ? oldLetters[i].char : char;
 
-      this.interactiveLetters.push({ char, index: i, relX: x, width: charWidth, anim: existing });
+      this.interactiveLetters.push({ char: currentChar, index: i, relX: x, width: charWidth, anim: existing });
     }
     this.updateHulls();
   },
@@ -204,7 +212,12 @@ const TitleEngine = {
       this.canvas.style.width = window.innerWidth + 'px';
       this.canvas.style.height = window.innerHeight + 'px';
       
-      const scale = 0.5; 
+      // Dynamic WebGL resolution scale:
+      // Use a lower scale on mobile/touch devices (high DPR + small GPU = lag).
+      // Desktop keeps the original 0.5 for crisp, sharp caustics.
+      const isMobile = window.matchMedia('(max-width: 768px)').matches ||
+        (navigator.maxTouchPoints > 0 && window.innerWidth < 1024);
+      const scale = isMobile ? 0.22 : 0.5;
       this.webgl.canvas.width = Math.floor(width * scale);
       this.webgl.canvas.height = Math.floor(height * scale);
       this.webgl.gl.viewport(0, 0, this.webgl.canvas.width, this.webgl.canvas.height);
@@ -286,11 +299,22 @@ const TitleEngine = {
     }
 
     const { gl, timeLoc, resLoc, hueLoc } = webgl;
-    gl.uniform1f(timeLoc, this.accumulatedTime * 0.001);
-    gl.uniform2f(resLoc, webgl.canvas.width, rect.height * dpr * 0.5); 
-    // Jelly mode: shift hue toward green (~2.1 rad)
-    gl.uniform1f(hueLoc, this.jellyMode ? 2.1 + Math.sin(this.accumulatedTime * 0.001) * 0.15 : this.currentHue); 
-    gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+    // Throttle the WebGL caustics redraw during heavy physics/jelly animation.
+    // The caustics change so slowly (~0.08 rad/s) that halving the GPU update rate
+    // is completely imperceptible, but frees up the GPU exactly when the CPU
+    // is also busy running physics for 14+ letters simultaneously.
+    const isPhysicsActive = this.interactiveLetters.some(l =>
+      l.anim.mode === 'physics' || l.anim.mode === 'jelly'
+    );
+    this._glFrame = ((this._glFrame || 0) + 1) % 2;
+    if (!isPhysicsActive || this._glFrame === 0) {
+      gl.uniform1f(timeLoc, this.accumulatedTime * 0.001);
+      gl.uniform2f(resLoc, webgl.canvas.width, rect.height * dpr * 0.5);
+      // Jelly mode: shift hue toward green (~2.1 rad)
+      gl.uniform1f(hueLoc, this.jellyMode ? 2.1 + Math.sin(this.accumulatedTime * 0.001) * 0.15 : this.currentHue);
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+    }
     
     // 2. Text Rendering
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -316,6 +340,29 @@ const TitleEngine = {
       if (letter.char === 'l' && (i === 2 || i === 3)) return null;
       return { letter, state: this.updateLetterState(letter, dt, y, startX, floor) };
     });
+
+    // Phantom 'e' hint over the Jolly 'o' (index 1)
+    // Render a faint ghost 'e' to hint the player can toggle it
+    const jollyO = this.interactiveLetters[1];
+    if (jollyO && !this.jellyMode) {
+      const oState = states[1] ? states[1].state : null;
+      if (oState && jollyO.char === 'o' && jollyO.anim.mode === 'idle') {
+        // Pulse the opacity gently to draw attention
+        const pulse = 0.09 + Math.sin(this.accumulatedTime * 0.0015) * 0.05;
+        ctx.save();
+        ctx.font = metrics.font;
+        ctx.letterSpacing = metrics.spacing;
+        ctx.textBaseline = 'middle';
+        ctx.globalAlpha = pulse;
+        ctx.fillStyle = '#ffffff';
+        ctx.translate(oState.x, oState.y);
+        ctx.rotate(oState.rot);
+        ctx.scale(oState.scaleX, oState.scaleY);
+        ctx.fillText('e', -jollyO.width / 2, 0);
+        ctx.restore();
+        ctx.globalAlpha = 1.0;
+      }
+    }
 
     // 2. Background Pass (z <= 0)
     states.forEach(item => {
@@ -663,11 +710,8 @@ const TitleEngine = {
       }
 
       case 'squishMorph': {
-        const squishDuration = 0.45; // Time to perform the squish morph
-        const stayDuration = 3.0;    // Time it stays as an unsquished 'e'
-        const unsquishDuration = 0.45; // Time to perform the unsquish morph back to 'o'
-        const totalDuration = squishDuration + stayDuration + unsquishDuration;
-
+        const squishDuration = 0.6; // total animation time
+        
         // Helper to evaluate keyframe-based scale values matching the CSS squishMorph keyframes:
         // 0%   -> scaleX(1.0), scaleY(1.0)
         // 30%  -> scaleX(1.5), scaleY(0.6)
@@ -696,35 +740,54 @@ const TitleEngine = {
           return { sx, sy };
         };
 
-        if (p <= totalDuration) {
-          if (p <= squishDuration) {
-            // Phase 1: Squishing and morphing 'o' -> 'e'
-            const t = p / squishDuration;
-            // Swap character at the peak squish (t = 0.3 matches the 30% CSS keyframe)
-            if (t >= 0.3) {
-              letter.char = 'e';
-            }
-            const scales = getSquishScales(t);
-            state.scaleX = scales.sx;
-            state.scaleY = scales.sy;
-          } else if (p <= squishDuration + stayDuration) {
-            // Phase 2: Stays as a normal 'e'
-            letter.char = 'e';
-            state.scaleX = 1;
-            state.scaleY = 1;
-          } else {
-            // Phase 3: Unsquishing and morphing 'e' -> 'o'
-            const t = (p - squishDuration - stayDuration) / unsquishDuration;
-            // Swap character back at the peak squish (t = 0.3 matches the 30% CSS keyframe)
-            if (t >= 0.3) {
-              letter.char = 'o';
-            }
-            const scales = getSquishScales(t);
-            state.scaleX = scales.sx;
-            state.scaleY = scales.sy;
+        if (p <= squishDuration) {
+          const t = p / squishDuration;
+          // Swap character at the peak squish (t = 0.3)
+          if (t >= 0.3 && anim.targetChar) {
+            letter.char = anim.targetChar;
           }
+          const scales = getSquishScales(t);
+          state.scaleX = scales.sx;
+          state.scaleY = scales.sy;
         } else {
-          letter.char = 'o';
+          if (anim.targetChar) {
+            letter.char = anim.targetChar;
+          }
+          anim.mode = 'idle';
+        }
+        break;
+      }
+
+      case 'squish': {
+        const squishDuration = 0.6;
+        const getSquishScales = (t) => {
+          let sx = 1.0, sy = 1.0;
+          if (t <= 0.3) {
+            const p = t / 0.3;
+            sx = 1.0 + 0.5 * p;
+            sy = 1.0 - 0.4 * p;
+          } else if (t <= 0.55) {
+            const p = (t - 0.3) / 0.25;
+            sx = 1.5 - 0.7 * p;
+            sy = 0.6 + 0.6 * p;
+          } else if (t <= 0.75) {
+            const p = (t - 0.55) / 0.2;
+            sx = 0.8 + 0.3 * p;
+            sy = 1.2 - 0.25 * p;
+          } else {
+            const p = (t - 0.75) / 0.25;
+            sx = 1.1 - 0.1 * p;
+            sy = 0.95 + 0.05 * p;
+          }
+          return { sx, sy };
+        };
+
+        if (p <= squishDuration) {
+          const t = p / squishDuration;
+          const scales = getSquishScales(t);
+          state.scaleX = scales.sx;
+          state.scaleY = scales.sy;
+        } else {
           anim.mode = 'idle';
         }
         break;
@@ -967,6 +1030,41 @@ const TitleEngine = {
   bindEvents() {
     window.addEventListener('click', (e) => this.handleClick(e));
     window.addEventListener('resize', () => this.handleResize());
+    window.addEventListener('keydown', (e) => this.handleKeyDown(e));
+  },
+
+  /**
+   * Handles keyboard shortcuts for title interactions.
+   * 'E' / 'e' — toggles the Jolly 'o' between 'o' and 'e' (squish morph).
+   */
+  handleKeyDown(e) {
+    if (e.repeat) return; // Ignore key-repeat events
+    if (e.key === 'e' || e.key === 'E') {
+      console.log("⌨️ Key 'e' pressed");
+      this.toggleJollyO();
+    }
+  },
+
+  /**
+   * Toggles the 'o' in 'Jolly' (index 1) between 'o' and 'e' via the squishMorph animation.
+   * Called by pressing the E key.
+   */
+  toggleJollyO() {
+    if (this.jellyMode) return;
+    const o1 = this.interactiveLetters[1];
+    if (!o1) {
+      console.warn("⚠️ Jolly 'o' letter not initialized yet.");
+      return;
+    }
+
+    console.log("🔄 Toggling Jolly 'o'. Current char:", o1.char, "Mode:", o1.anim.mode);
+
+    if (o1.anim.mode === 'idle') {
+      o1.anim.mode = 'squishMorph';
+      o1.anim.start = performance.now();
+      o1.anim.targetChar = (o1.char.toLowerCase() === 'o') ? 'e' : 'o';
+      console.log("🎯 Set morph targetChar to:", o1.anim.targetChar);
+    }
   },
 
   handleClick(e) {
@@ -1052,41 +1150,30 @@ const TitleEngine = {
     } else if (letter.char === 'p' && letter.index === 7) {
       this.handleExplosionInteraction();
     } else if (letter.char === 'y') {
-      if (anim.mode === 'idle') this.handleYInteraction(letter);
-    } else if (letter.char.toLowerCase() === 'o') {
+      this.handleYInteraction(letter);
+    } else if (letter.char === 'e' && letter.index === 1) {
+      // The Jolly 'o' is currently showing as 'e' — clicking it triggers jelly mode!
+      if (!this.jellyMode) this.triggerJellyMode();
+    } else if (letter.char.toLowerCase() === 'o' && (letter.index === 1 || letter.index === 13)) {
       this.handleOSwap(letter);
     } else if (letter.char === 'l' && (letter.index === 2 || letter.index === 3)) {
       this.toggleSpace();
     } else if (letter.char === 'c' && letter.index === 9) {
-      if (anim.mode === 'idle') this.handleStarfieldToggle(letter);
+      this.handleStarfieldToggle(letter);
     } else if (letter.char === 'S') {
       this.handleSInteraction(letter, yBase, fontSize);
     } else if (letter.char === 'e' && letter.index === 10) {
-      if (anim.mode === 'idle') this.handleEInteraction();
+      // The 'e' in 'Space' — toggles the Jolly 'o' between 'o' and 'e'
+      this.toggleJollyO();
     }
   },
 
   /**
-   * Handles clicks on the 'e' letter (index 10, in 'Space').
-   * First click: triggers the 'o' → 'e' squish morph on the 'J[o]lly' letter.
-   * Second click (while 'o' is showing as 'e'): triggers the jelly easter egg!
+   * (Legacy stub — interaction logic has moved to toggleJollyO and triggerInteraction.)
+   * Kept to avoid any residual call-site errors during refactor.
    */
   handleEInteraction() {
-    if (this.jellyMode) return; // Already in jelly mode
-
-    const o1 = this.interactiveLetters[1]; // The 'o' in 'Jolly'
-    
-    // If the 'o' in Jolly is currently showing as an 'e' (squish morph in progress),
-    // this second click on the 'e' in Space triggers JELLY MODE!
-    if (o1 && o1.char === 'e') {
-      this.triggerJellyMode();
-      return;
-    }
-
-    // Otherwise: first click — trigger the squish morph on 'o' → 'e'
-    if (!o1 || o1.anim.mode !== 'idle') return;
-    o1.anim.mode = 'squishMorph';
-    o1.anim.start = performance.now();
+    this.toggleJollyO();
   },
 
   /**
@@ -1141,6 +1228,7 @@ const TitleEngine = {
   handleOSwap(clickedLetter) {
     const o1 = this.interactiveLetters[1];
     const o2 = this.interactiveLetters[13];
+    // Only allow swapping when both letters are the 'o' character
     if (!o1 || !o2 || o1.char.toLowerCase() !== 'o' || o2.char.toLowerCase() !== 'o') return;
 
     // Prevent swapping if either 'o' is currently animating in another behaviour
