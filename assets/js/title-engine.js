@@ -3,6 +3,459 @@
  * Manages the animated, interactive title with WebGL backgrounds and physics-based hit detection.
  */
 
+/**
+ * Jolly Space Cow - Newton's Cradle Physics Module
+ * Handles pendulum kinematics, elastic letter collisions, wire rendering, and collision sparks.
+ */
+const NewtonsCradle = {
+  _cradleLocked: false,
+  _cradleScrollAccum: 0,
+  _lastDragMoved: false,
+  cradleState: null,
+  cradleSparks: [],
+  dragState: null,
+  isDraggingLetter: false,
+  _customSoundIndex: -1,
+
+  /**
+   * Check if Newton's Cradle mode is enabled.
+   */
+  isEnabled() {
+    return this._cradleLocked;
+  },
+
+  /**
+   * Cycles through all available sound effects in SoundEngine on pressing key '7'.
+   */
+  cycleCollisionSound(titleEngine) {
+    const sEngine = window.SoundEngine || (typeof SoundEngine !== 'undefined' ? SoundEngine : null);
+    if (!sEngine || !sEngine.sounds) return;
+    const soundKeys = Object.keys(sEngine.sounds);
+    if (!soundKeys.length) return;
+
+    this._customSoundIndex = (this._customSoundIndex + 1) % soundKeys.length;
+    const chosenKey = soundKeys[this._customSoundIndex];
+    console.log(`🔊 Newton's Cradle sound cycled to [${this._customSoundIndex + 1}/${soundKeys.length}]: ${chosenKey}`);
+    
+    // Play an immediate sample preview of the chosen sound
+    sEngine.play(chosenKey, 0.45, 1.0);
+  },
+
+  /**
+   * Retrieves active collision sound effect key.
+   */
+  getCurrentCollisionSound(titleEngine) {
+    const sEngine = window.SoundEngine || (typeof SoundEngine !== 'undefined' ? SoundEngine : null);
+    if (this._customSoundIndex >= 0 && sEngine && sEngine.sounds) {
+      const soundKeys = Object.keys(sEngine.sounds);
+      if (soundKeys[this._customSoundIndex]) {
+        return soundKeys[this._customSoundIndex];
+      }
+    }
+    const isJelly = Boolean(titleEngine && titleEngine.jellyMode);
+    return isJelly ? 'pop' : 'll_a';
+  },
+
+  /**
+   * Toggle or set the cradle active state.
+   */
+  setLocked(locked, titleEngine) {
+    this._cradleLocked = locked;
+    if (!locked) {
+      this.exit(titleEngine);
+    }
+  },
+
+  /**
+   * Triggers or kicks the Newton's Cradle letter simulation.
+   * @param {object} titleEngine - Reference to TitleEngine
+   * @param {object|null} clickedLetter - Specific letter clicked/dragged (or null for default)
+   * @param {number} fontSize - Active font size
+   */
+  trigger(titleEngine, clickedLetter, fontSize) {
+    const dpr = titleEngine.metrics.dpr;
+    const now = performance.now();
+    const seoTitle = document.getElementById('seo-title');
+    if (!seoTitle || titleEngine.interactiveLetters.length === 0) return;
+
+    // Cancel any active oSwapping so o-swap animation doesn't reset 'o' letters to 'idle' later
+    titleEngine.oSwapping = false;
+    titleEngine.oSwapState = null;
+
+    const rect = seoTitle.getBoundingClientRect();
+    const startX = (rect.left + rect.width / 2) * dpr - (titleEngine.metrics.totalWidth / 2);
+    const yBase = (rect.top + rect.height / 2) * dpr;
+
+    if (!this.cradleState || !this.cradleState.active) {
+      const lettersMap = {};
+      const letterNodes = [];
+
+      titleEngine.interactiveLetters.forEach((item) => {
+        if (!item.char.trim()) return;
+        item.anim.mode = 'cradle';
+        item.anim.start = now;
+        const origX = startX + item.relX + item.width / 2;
+        const origY = yBase;
+
+        const node = {
+          letter: item,
+          index: item.index,
+          origX: origX,
+          origY: origY,
+          width: item.width,
+          theta: 0,
+          omega: 0,
+          squishX: 1.0,
+          squishY: 1.0
+        };
+        lettersMap[item.index] = node;
+        letterNodes.push(node);
+      });
+
+      // Sort nodes horizontally by resting origX position
+      letterNodes.sort((a, b) => a.origX - b.origX);
+
+      // Initial swing angle for clicked letter (or default to letter 'a' at index 8)
+      const targetIndex = clickedLetter ? clickedLetter.index : 8;
+      const clickedNode = lettersMap[targetIndex] || letterNodes[Math.floor(letterNodes.length / 2)];
+
+      if (clickedNode) {
+        // Swing pulled back towards left by default (approx -38 degrees) with initial downward push
+        clickedNode.theta = -0.65;
+        clickedNode.omega = -3.5;
+      }
+
+      this.cradleState = {
+        active: true,
+        lettersMap: lettersMap,
+        nodes: letterNodes,
+        lastTime: now
+      };
+      this.cradleSparks = [];
+    } else if (clickedLetter && this.cradleState.lettersMap[clickedLetter.index]) {
+      // Newton's cradle already active: kick the clicked letter to add momentum
+      clickedLetter.anim.mode = 'cradle';
+      const node = this.cradleState.lettersMap[clickedLetter.index];
+      if (node) {
+        const kickDir = clickedLetter.index < 7 ? -1 : 1;
+        node.theta += kickDir * 0.45;
+        node.omega += kickDir * 4.2;
+      }
+    }
+  },
+
+  /**
+   * Updates Newton's Cradle pendulum mechanics and collision momentum transfers.
+   */
+  updatePhysics(titleEngine, dt, fontSize, yBase) {
+    if (!this.cradleState || !this.cradleState.active) return;
+
+    const dpr = titleEngine.metrics.dpr;
+    const nodes = this.cradleState.nodes;
+    const L = Math.max(fontSize * 2.1, 140 * dpr);
+    const g = 14.5 * L; // Pendulum acceleration scaling (omega_0^2 = g/L = 14.5)
+    const damping = Math.pow(0.996, dt * 60); // Air resistance
+
+    // 1. Step individual pendulums
+    nodes.forEach(node => {
+      node.letter.anim.mode = 'cradle';
+      if (this.dragState && this.dragState.hasMoved && this.dragState.letter.index === node.index) return; // Currently dragged by pointer
+
+      const alpha = -(g / L) * Math.sin(node.theta);
+      node.omega += alpha * dt;
+      node.omega *= damping;
+      node.theta += node.omega * dt;
+
+      // Squish spring relaxation back to 1.0
+      node.squishX += (1.0 - node.squishX) * Math.min(1.0, 14.0 * dt);
+      node.squishY += (1.0 - node.squishY) * Math.min(1.0, 14.0 * dt);
+    });
+
+    // 2. Elastic collision momentum transfer between adjacent letters
+    const restitution = 0.96; // High energy transfer for classic Newton's Cradle
+    for (let i = 0; i < nodes.length - 1; i++) {
+      const n1 = nodes[i];
+      const n2 = nodes[i + 1];
+
+      if (n1.letter.anim.mode !== 'cradle' || n2.letter.anim.mode !== 'cradle') continue;
+
+      const x1 = n1.origX + L * Math.sin(n1.theta);
+      const x2 = n2.origX + L * Math.sin(n2.theta);
+
+      // Contact threshold based on letter widths
+      const minDist = (n1.width + n2.width) * 0.47;
+      const relDist = x2 - x1;
+
+      // Relative angular velocity towards each other
+      const relOmega = n1.omega - n2.omega;
+
+      if (relDist <= minDist && relOmega > 0) {
+        // Elastic collision velocity exchange
+        const avgOmega = (n1.omega + n2.omega) / 2;
+        const diffOmega = (n1.omega - n2.omega) / 2;
+
+        n1.omega = avgOmega - restitution * diffOmega;
+        n2.omega = avgOmega + restitution * diffOmega;
+
+        // Position separation constraint to prevent overlap
+        const overlap = minDist - relDist;
+        const dTheta = overlap / L;
+        n1.theta -= dTheta * 0.5;
+        n2.theta += dTheta * 0.5;
+
+        // Collision impact visual effects, squish & sound
+        const impactVel = Math.abs(relOmega);
+        if (impactVel > 0.05) {
+          n1.squishX = 0.84; n1.squishY = 1.16;
+          n2.squishX = 0.84; n2.squishY = 1.16;
+
+          const sparkX = (x1 + x2) / 2;
+          const sparkY = yBase - fontSize * 0.1;
+          this.spawnCradleSpark(titleEngine, sparkX, sparkY, impactVel);
+
+          const nowMs = performance.now();
+          if (nowMs - (this._lastPopTime || 0) > 35) {
+            this._lastPopTime = nowMs;
+            const sEngine = window.SoundEngine || (typeof SoundEngine !== 'undefined' ? SoundEngine : null);
+            if (sEngine && typeof sEngine.play === 'function') {
+              const soundKey = this.getCurrentCollisionSound(titleEngine);
+              const pitch = 0.95 + Math.min(0.4, impactVel * 0.12) + (Math.random() * 0.1 - 0.05);
+              const vol = Math.min(0.85, 0.45 + impactVel * 0.15);
+              sEngine.play(soundKey, vol, pitch);
+            }
+          }
+        }
+      }
+    }
+
+    // 3. Check for settling condition (motion decayed)
+    if (!this.isDraggingLetter) {
+      let maxEnergy = 0;
+      nodes.forEach(node => {
+        if (node.letter.anim.mode === 'cradle') {
+          const kinetic = 0.5 * node.omega * node.omega;
+          const potential = (g / L) * (1 - Math.cos(node.theta));
+          maxEnergy = Math.max(maxEnergy, kinetic + potential);
+        }
+      });
+
+      if (maxEnergy < 0.0002) {
+        this.exit(titleEngine);
+      }
+    }
+  },
+
+  /**
+   * Spawns collision sparks when letters collide in Newton's Cradle mode.
+   */
+  spawnCradleSpark(titleEngine, x, y, impactVel) {
+    if (!this.cradleSparks) this.cradleSparks = [];
+    const count = Math.min(6, 2 + Math.floor(impactVel * 3));
+    const dpr = titleEngine.metrics.dpr;
+
+    for (let i = 0; i < count; i++) {
+      const angle = (Math.random() - 0.5) * Math.PI;
+      const speed = (60 + Math.random() * 120) * dpr;
+      this.cradleSparks.push({
+        x: x,
+        y: y,
+        vx: Math.sin(angle) * speed,
+        vy: -Math.abs(Math.cos(angle)) * speed,
+        size: 1.5 + Math.random() * 2.0,
+        life: 0.25 + Math.random() * 0.2,
+        colour: Math.random() > 0.4 ? '#ffffff' : '#70e0ff'
+      });
+    }
+  },
+
+  /**
+   * Renders suspension wires and collision sparks onto the canvas context.
+   */
+  renderWiresAndSparks(ctx, titleEngine, fontSize, dt) {
+    const dpr = titleEngine.metrics.dpr;
+
+    // Overhead suspension wires
+    if (this.cradleState && this.cradleState.active) {
+      const L = Math.max(fontSize * 2.1, 140 * dpr);
+      ctx.save();
+      this.cradleState.nodes.forEach(node => {
+        if (node.letter.anim.mode !== 'cradle') return;
+        const curX = node.origX + L * Math.sin(node.theta);
+        const curY = node.origY + L * (1 - Math.cos(node.theta));
+        const pivotX = node.origX;
+        const pivotY = node.origY - L;
+
+        // Suspension wire
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+        ctx.lineWidth = 1.5 * dpr;
+        ctx.beginPath();
+        ctx.moveTo(pivotX, pivotY);
+        ctx.lineTo(curX, curY - (fontSize * 0.3 * dpr));
+        ctx.stroke();
+
+        // Pivot anchor rivet
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(pivotX, pivotY, 3.2 * dpr, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      ctx.restore();
+    }
+
+    // Spark particles
+    if (this.cradleSparks && this.cradleSparks.length > 0) {
+      ctx.save();
+      this.cradleSparks.forEach(sp => {
+        sp.x += sp.vx * dt;
+        sp.y += sp.vy * dt;
+        sp.life -= dt * 3.5;
+        if (sp.life <= 0) return;
+        ctx.globalAlpha = Math.max(0, sp.life);
+        ctx.fillStyle = sp.colour;
+        ctx.beginPath();
+        ctx.arc(sp.x, sp.y, sp.size * dpr, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      this.cradleSparks = this.cradleSparks.filter(sp => sp.life > 0);
+      ctx.restore();
+    }
+  },
+
+  /**
+   * Evaluates state transform for a letter in 'cradle' mode.
+   */
+  evaluateLetterState(letter, titleEngine, state) {
+    if (this.cradleState && this.cradleState.lettersMap) {
+      const node = this.cradleState.lettersMap[letter.index];
+      if (node) {
+        const dpr = titleEngine.metrics.dpr;
+        const fontSize = parseFloat(titleEngine.metrics.font.split(' ')[1]) || 80;
+        const L = Math.max(fontSize * 2.1, 140 * dpr);
+        state.x = node.origX + L * Math.sin(node.theta);
+        state.y = node.origY + L * (1 - Math.cos(node.theta));
+        state.rot = node.theta;
+        state.scaleX = node.squishX;
+        state.scaleY = node.squishY;
+      }
+    }
+    return state;
+  },
+
+  /**
+   * Cleanly exits Newton's Cradle mode, resetting all letters to idle.
+   */
+  exit(titleEngine) {
+    this._cradleLocked = false;
+    if (!this.cradleState) return;
+    this.cradleState.active = false;
+    if (this.cradleState.nodes) {
+      this.cradleState.nodes.forEach(node => {
+        if (node.letter.anim.mode === 'cradle') {
+          node.letter.anim.mode = 'idle';
+        }
+      });
+    }
+    this.cradleState = null;
+    this.cradleSparks = [];
+    if (this.dragState) {
+      this.dragState = null;
+      this.isDraggingLetter = false;
+      document.body.style.cursor = '';
+    }
+  },
+
+  /**
+   * Pointer drag handlers (PointerDown / PointerMove / PointerUp)
+   */
+  handlePointerDown(e, titleEngine) {
+    if (e.button !== undefined && e.button !== 0) return;
+    if (!this.isEnabled()) return;
+    const dpr = titleEngine.metrics.dpr;
+    const mx = e.clientX * dpr, my = e.clientY * dpr;
+    const hitLetter = titleEngine.getLetterAtPoint(mx, my);
+
+    if (hitLetter) {
+      this.dragState = {
+        letter: hitLetter,
+        startX: mx,
+        startY: my,
+        lastMx: mx,
+        lastMy: my,
+        lastTime: performance.now(),
+        hasMoved: false
+      };
+      this.isDraggingLetter = false;
+    }
+  },
+
+  handlePointerMove(e, titleEngine) {
+    if (!this.isEnabled()) return;
+    const dpr = titleEngine.metrics.dpr;
+    const mx = e.clientX * dpr, my = e.clientY * dpr;
+    const now = performance.now();
+
+    if (this.dragState && this.isEnabled()) {
+      const dx = mx - this.dragState.startX;
+      const dy = my - this.dragState.startY;
+
+      if (!this.dragState.hasMoved && Math.hypot(dx, dy) > 4 * dpr) {
+        this.dragState.hasMoved = true;
+        this.isDraggingLetter = true;
+        document.body.style.cursor = 'grabbing';
+
+        const fontSize = parseFloat(titleEngine.metrics.font.split(' ')[1]) || 80;
+        this.trigger(titleEngine, this.dragState.letter, fontSize);
+      }
+
+      if (this.dragState.hasMoved && this.cradleState && this.cradleState.active) {
+        const node = this.cradleState.lettersMap[this.dragState.letter.index];
+        if (node) {
+          const fontSize = parseFloat(titleEngine.metrics.font.split(' ')[1]) || 80;
+          const L = Math.max(fontSize * 2.1, 140 * dpr);
+          const pivotX = node.origX;
+          const pivotY = node.origY - L;
+
+          const targetTheta = Math.atan2(mx - pivotX, my - pivotY);
+          const clampedTheta = Math.max(-1.3, Math.min(1.3, targetTheta));
+
+          const dt = Math.max(0.001, (now - this.dragState.lastTime) / 1000);
+          const dTheta = clampedTheta - node.theta;
+          const vTheta = dTheta / dt;
+
+          node.theta = clampedTheta;
+          node.omega = vTheta * 0.75;
+
+          this.dragState.lastMx = mx;
+          this.dragState.lastMy = my;
+          this.dragState.lastTime = now;
+        }
+      }
+    } else if (this.isEnabled()) {
+      const hit = titleEngine.getLetterAtPoint(mx, my);
+      if (hit && !this.isDraggingLetter) {
+        document.body.style.cursor = 'grab';
+      } else if (!this.isDraggingLetter) {
+        document.body.style.cursor = '';
+      }
+    }
+  },
+
+  handlePointerUp(e, titleEngine) {
+    if (this.dragState) {
+      const wasMoved = this.dragState.hasMoved;
+      this._lastDragMoved = wasMoved;
+      const targetLetter = this.dragState.letter;
+
+      this.dragState = null;
+      this.isDraggingLetter = false;
+      document.body.style.cursor = '';
+
+      return { wasMoved, targetLetter };
+    }
+    return null;
+  }
+};
+
 const TitleEngine = {
   canvas: null,
   ctx: null,
@@ -269,6 +722,33 @@ const TitleEngine = {
     return Physics.getConvexHull(points);
   },
 
+  /**
+   * Retrieves the interactive letter occupying canvas point (mx, my), if any.
+   */
+  getLetterAtPoint(mx, my) {
+    if (!this.interactiveLetters || !this.interactiveLetters.length) return null;
+    const dpr = this.metrics.dpr;
+    const seoTitle = document.getElementById('seo-title');
+    if (!seoTitle) return null;
+    const rect = seoTitle.getBoundingClientRect();
+    const fontSize = parseFloat(this.metrics.font.split(' ')[1]) || 0;
+    const y = (rect.top + rect.height / 2) * dpr + (fontSize * 0.05);
+    const startX = (rect.left + rect.width / 2) * dpr - (this.metrics.totalWidth / 2);
+    const floor = (window.innerHeight - 50) * dpr;
+
+    for (let i = 0; i < this.interactiveLetters.length; i++) {
+      const letter = this.interactiveLetters[i];
+      if (!letter || !letter.char.trim()) continue;
+      if (!this.cachedHulls[letter.char]) continue;
+      const state = this.updateLetterState(letter, 0, y, startX, floor);
+      const hull = Physics.getTransformedHull(this.cachedHulls[letter.char], state.x, state.y, state.scaleX, state.scaleY, state.rot, -letter.width / 2, 0);
+      if (Physics.isPointInPolygon({ x: mx, y: my }, hull)) {
+        return letter;
+      }
+    }
+    return null;
+  },
+
   render(time) {
     const { ctx, metrics, webgl } = this;
     const dpr = metrics.dpr;
@@ -334,6 +814,14 @@ const TitleEngine = {
 
     if (this.oSwapping && this.oSwapState) {
       this.updateOSwapState(dt);
+    }
+
+    if (NewtonsCradle.cradleState && NewtonsCradle.cradleState.active) {
+      if (!NewtonsCradle.isEnabled()) {
+        NewtonsCradle.exit(this);
+      } else {
+        NewtonsCradle.updatePhysics(this, dt, fontSize, y);
+      }
     }
 
     const states = this.interactiveLetters.map((letter, i) => {
@@ -444,6 +932,9 @@ const TitleEngine = {
       // Final draw back to main canvas
       ctx.drawImage(this.offscreen, 0, 0);
     });
+
+    // Render Newton's Cradle overhead suspension wires and collision sparks
+    NewtonsCradle.renderWiresAndSparks(ctx, this, fontSize, dt);
 
     // Update and render smoke particles
     if (this.particles && this.particles.length > 0) {
@@ -586,6 +1077,9 @@ const TitleEngine = {
     const durs = this.config.durations;
 
     switch (anim.mode) {
+      case 'cradle':
+        return NewtonsCradle.evaluateLetterState(letter, this, state);
+
       case 'jump':
         if (p <= durs.jump) {
           const res = this.getJumpParams(p / durs.jump);
@@ -1031,17 +1525,31 @@ const TitleEngine = {
     window.addEventListener('click', (e) => this.handleClick(e));
     window.addEventListener('resize', () => this.handleResize());
     window.addEventListener('keydown', (e) => this.handleKeyDown(e));
+    window.addEventListener('pointerdown', (e) => NewtonsCradle.handlePointerDown(e, this));
+    window.addEventListener('pointermove', (e) => NewtonsCradle.handlePointerMove(e, this));
+    window.addEventListener('pointerup', (e) => NewtonsCradle.handlePointerUp(e, this));
   },
 
   /**
    * Handles keyboard shortcuts for title interactions.
    * 'E' / 'e' — toggles the Jolly 'o' between 'o' and 'e' (squish morph).
+   * 'N' / 'n' — toggles Newton's Cradle physics mode.
    */
   handleKeyDown(e) {
     if (e.repeat) return; // Ignore key-repeat events
     if (e.key === 'e' || e.key === 'E') {
       console.log("⌨️ Key 'e' pressed");
       this.toggleJollyO();
+    } else if (e.key === 'n' || e.key === 'N') {
+      console.log("⌨️ Key 'n' pressed (Newton's Cradle toggle)");
+      NewtonsCradle.setLocked(!NewtonsCradle.isEnabled(), this);
+      if (NewtonsCradle.isEnabled()) {
+        const fontSize = parseFloat(this.metrics.font.split(' ')[1]) || 80;
+        NewtonsCradle.trigger(this, null, fontSize);
+      }
+    } else if (e.key === '7') {
+      console.log("⌨️ Key '7' pressed (Cycling collision sound)");
+      NewtonsCradle.cycleCollisionSound(this);
     }
   },
 
@@ -1068,6 +1576,21 @@ const TitleEngine = {
   },
 
   handleClick(e) {
+    if (NewtonsCradle.isEnabled()) {
+      if (NewtonsCradle._lastDragMoved) {
+        NewtonsCradle._lastDragMoved = false;
+        return;
+      }
+      const dpr = this.metrics.dpr;
+      const mx = e.clientX * dpr, my = e.clientY * dpr;
+      const hit = this.getLetterAtPoint(mx, my);
+      if (hit) {
+        const fontSize = parseFloat(this.metrics.font.split(' ')[1]) || 80;
+        NewtonsCradle.trigger(this, hit, fontSize);
+      }
+      return;
+    }
+
     const dpr = this.metrics.dpr;
     const mx = e.clientX * dpr, my = e.clientY * dpr;
     const seoTitle = document.getElementById('seo-title');
@@ -1193,6 +1716,12 @@ const TitleEngine = {
       this.oSwapState = null;
     }
 
+    if (NewtonsCradle.isEnabled()) {
+      NewtonsCradle.setLocked(false, this);
+    } else {
+      NewtonsCradle.exit(this);
+    }
+
     this.interactiveLetters.forEach((letter, i) => {
       // Stagger the launch slightly so they cascade like falling jelly blobs
       const delay = i * 45;
@@ -1276,6 +1805,11 @@ const TitleEngine = {
       if (this.oSwapping) {
         this.oSwapping = false;
         this.oSwapState = null;
+      }
+      if (NewtonsCradle.isEnabled()) {
+        NewtonsCradle.setLocked(false, this);
+      } else {
+        NewtonsCradle.exit(this);
       }
       this.interactiveLetters.forEach(l => {
         l.anim.mode = 'physics'; l.anim.start = performance.now();

@@ -11,7 +11,7 @@
 // deleted on activate and all pages/assets are re-fetched on next visit.
 // ───────────────────────────────────────────────────────────────────────────────
 
-const CACHE_NAME = 'jsc-2026-07-18'; // Force reload for 'e' click animation fix
+const CACHE_NAME = 'jsc-2026-08-19';
 
 const PRECACHE_URLS = [
   './',
@@ -42,6 +42,7 @@ const PRECACHE_URLS = [
   './assets/js/gallery.js',
   './assets/js/offline.js',
   './assets/js/troll.js',
+  './assets/js/sound.js',
   
   // Public assets
   './public/favicon.ico',
