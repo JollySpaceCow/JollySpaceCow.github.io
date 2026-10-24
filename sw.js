@@ -45,9 +45,12 @@ const PRECACHE_URLS = [
   './assets/js/sound.js',
   
   // Public assets
+  './favicon.ico',
   './public/favicon.ico',
   './public/favicon-16x16.png',
   './public/favicon-32x32.png',
+  './public/favicon-48x48.png',
+  './public/favicon-192x192.png',
   './public/apple-touch-icon.png',
 ];
 
