@@ -1532,12 +1532,20 @@ const TitleEngine = {
 
   /**
    * Handles keyboard shortcuts for title interactions.
+   * 'J' / 'j' — triggers 'J' jump and spawns/reveals Mr Finance.
    * 'E' / 'e' — toggles the Jolly 'o' between 'o' and 'e' (squish morph).
    * 'N' / 'n' — toggles Newton's Cradle physics mode.
    */
   handleKeyDown(e) {
     if (e.repeat) return; // Ignore key-repeat events
-    if (e.key === 'e' || e.key === 'E') {
+    if (e.key === 'j' || e.key === 'J') {
+      console.log("⌨️ Key 'j' pressed (Mr Finance & Jump)");
+      const jLetter = this.interactiveLetters[0];
+      if (jLetter && jLetter.char === 'J') {
+        const fontSize = parseFloat(this.metrics.font.split(' ')[1]) || 80;
+        this.triggerInteraction(jLetter, 0, fontSize);
+      }
+    } else if (e.key === 'e' || e.key === 'E') {
       console.log("⌨️ Key 'e' pressed");
       this.toggleJollyO();
     } else if (e.key === 'n' || e.key === 'N') {
@@ -1667,7 +1675,11 @@ const TitleEngine = {
   triggerInteraction(letter, yBase, fontSize) {
     const anim = letter.anim;
     if (letter.char === 'J' && letter.index === 0) {
-      if (anim.mode === 'idle') { anim.mode = 'jump'; anim.start = performance.now(); if (window.MrFinance) MrFinance.spawn(); }
+      if (anim.mode === 'idle') {
+        anim.mode = 'jump';
+        anim.start = performance.now();
+      }
+      if (window.MrFinance) MrFinance.spawn();
     } else if (letter.char === 'w') {
       this.handleWInteraction(letter, yBase, fontSize);
     } else if (letter.char === 'p' && letter.index === 7) {

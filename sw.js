@@ -11,7 +11,7 @@
 // deleted on activate and all pages/assets are re-fetched on next visit.
 // ───────────────────────────────────────────────────────────────────────────────
 
-const CACHE_NAME = 'jsc-2026-10-24';
+const CACHE_NAME = 'jsc-2026-10-31';
 
 const PRECACHE_URLS = [
   './',

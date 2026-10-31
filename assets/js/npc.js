@@ -1,13 +1,20 @@
 /**
  * Jolly Space Cow - NPC Engine
- * Manages the "Mr. Finance" character behavior and animations.
+ * Manages the "Mr. Finance" character behaviour and animations.
  */
 
 window.MrFinance = {
   isSpawned: false,
+  fin: null,
+  reappear: null,
 
   spawn() {
-    if (this.isSpawned) return;
+    if (this.isSpawned && this.fin && this.fin.isConnected) {
+      if (this.reappear) {
+        this.reappear();
+      }
+      return;
+    }
     this.isSpawned = true;
 
     // Ensure model-viewer is loaded
@@ -19,12 +26,13 @@ window.MrFinance = {
     }
 
     const fin = document.createElement('model-viewer');
+    this.fin = fin;
     fin.setAttribute('src', 'assets/3d/FinanCharacter34BakermanGrooving.glb');
     fin.setAttribute('autoplay', '');
     fin.setAttribute('animation-name', 'Walking');
     fin.setAttribute('orientation', '0deg 0deg 90deg');
     
-    // Performance optimizations
+    // Performance optimisations
     fin.setAttribute('shadow-intensity', '0');
     fin.setAttribute('environment-image', 'neutral');
     fin.setAttribute('interaction-prompt', 'none');
@@ -135,7 +143,7 @@ window.MrFinance = {
           stopLoop();
           stateTimer = setTimeout(() => {
             if (state === 'impact') {
-              setState('standing_up', 'Standing Up', '0deg 0deg 0deg');
+              setState('standing_up', 'Crouch To Stand', '0deg 0deg 0deg');
               stateTimer = setTimeout(() => {
                 if (state === 'standing_up') {
                   setState('idle', 'Idle', '0deg 0deg 0deg');
@@ -185,7 +193,7 @@ window.MrFinance = {
         } else {
           const rand = Math.random();
           if (rand < 0.2) {
-            const idleAnims = ['Idle', 'Dancing Twerk', 'Salsa Dance'];
+            const idleAnims = ['Idle', 'Dancing Twerk', 'Salsa Dancing'];
             const anim = idleAnims[Math.floor(Math.random() * idleAnims.length)];
             setState('idle', anim, '0deg 0deg 0deg');
             stopLoop();
@@ -234,6 +242,23 @@ window.MrFinance = {
         }, 1500);
       }
     });
+
+    this.reappear = () => {
+      if (stateTimer) clearTimeout(stateTimer);
+      fallVelocity = 0;
+      y = 0;
+      // Bring Mr Finance back onto the screen if currently off-screen
+      if (x < -100 || x > cachedWidth) {
+        x = -150;
+        facingRight = true;
+      }
+      revealed = true;
+      fin.style.visibility = 'visible';
+      setState('walk', 'Walking', facingRight ? '0deg 0deg 90deg' : '0deg 0deg -90deg');
+      applyTransform();
+      startLoop();
+      stateTimer = setTimeout(think, 3000 + Math.random() * 2000);
+    };
 
     startLoop();
     stateTimer = setTimeout(think, 4000 + Math.random() * 3000);
